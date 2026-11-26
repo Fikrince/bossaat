@@ -39,7 +39,11 @@ export default function AdminPage(){
   setMessage(error?"Fırsat güncellenemedi: "+error.message:"Fırsat durumu güncellendi.");if(!error)await load();
  }
  async function updateReservation(id:string,status:"approved"|"rejected"|"completed"){
-  if(!supabase)return;const current=reservations.find(r=>r.id===id);if(!current||current.status!=="pending"){setMessage("Yalnızca bekleyen rezervasyonlar işleme alınabilir.");return;}const {error}=await supabase.from("reservations").update({status}).eq("id",id).eq("status","pending");
+  if(!supabase)return;
+  const current=reservations.find(r=>r.id===id);
+  const allowed=current?.status==="pending"?(status==="approved"||status==="rejected"):current?.status==="approved"&&status==="completed";
+  if(!current||!allowed){setMessage("Rezervasyonun mevcut durumundan bu işleme izin verilmiyor.");return;}
+  const {error}=await supabase.from("reservations").update({status}).eq("id",id).eq("status",current.status);
   setMessage(error?"Rezervasyon güncellenemedi: "+error.message:"Rezervasyon durumu güncellendi.");if(!error)await load();
  }
  async function logout(){await supabase?.auth.signOut();router.push("/");}
