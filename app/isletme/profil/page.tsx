@@ -26,10 +26,10 @@ export default function BusinessProfilePage() {
       if (authError || !user) { router.replace("/giris?next=%2Fisletme%2Fprofil"); return; }
       const { data:profile } = await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
       if (profile?.role !== "business") { router.replace(profile?.role === "admin" ? "/admin" : "/panel"); return; }
-      const { data, error } = await supabase.from("businesses").select("id,name,category,description,district,address,phone,status").eq("owner_id",user.id).limit(1).maybeSingle();
+      const { data, error } = await supabase.rpc("get_my_business_profile");
       if (!active) return;
-      if (error || !data) { setMessage(error ? "İşletme bilgileri yüklenemedi: "+error.message : "Henüz işletme kaydın bulunmuyor."); return; }
-      const b = data as Business;
+      if (error || !data || !data.length) { setMessage(error ? "İşletme bilgileri yüklenemedi: "+error.message : "Henüz işletme kaydın bulunmuyor."); return; }
+      const b = data[0] as Business;
       setBusiness(b); setName(b.name); setCategory(b.category); setDescription(b.description||""); setDistrict(b.district); setAddress(b.address||""); setPhone(b.phone||"");
       setMessage(b.status === "approved" ? "İşletme profilin yayında." : "İşletme başvurun yönetici onayı bekliyor.");
     })();
