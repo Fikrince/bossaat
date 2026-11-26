@@ -39,7 +39,7 @@ export default function GirisPage() {
         });
         if (error) setMessage("Kayıt tamamlanamadı: " + error.message);
         else if (data.user && data.user.identities?.length === 0) { setMode("login"); setMessage("Bu e-posta adresiyle bir hesap zaten var. Giriş yapmayı dene veya “Şifremi unuttum” bağlantısını kullan."); }
-        else if (data.session) router.replace("/panel");
+        else if (data.session) router.replace(safeNextPath() || "/panel");
         else setMessage("Hesabın oluşturuldu. E-posta doğrulaması gerekiyorsa gelen kutunu ve Spam klasörünü kontrol et.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
