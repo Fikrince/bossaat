@@ -35,7 +35,24 @@ export default function SupportPage() {
     });
     setBusy(false);
     if (error) setNotice("Mesaj kaydedilemedi. Lütfen tekrar dene veya e-posta ile ulaş.");
-    else { setNotice("Mesajın BOŞSAAT destek kutusuna iletildi. Yönetici panelinden takip edeceğiz."); setSubject(""); setMessage(""); }
+    else {
+      let delivery = "Mesajın yönetici paneline kaydedildi.";
+      try {
+        const notification = await fetch("/api/support-notify", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subject: subject.trim(), category, message: message.trim() })
+        });
+        if (notification.ok) {
+          const result = await notification.json();
+          const sent = [];
+          if (result.notifications?.email === "sent") sent.push("e-posta bildirimi gönderildi");
+          if (result.notifications?.whatsapp === "sent") sent.push("WhatsApp bildirimi gönderildi");
+          if (sent.length) delivery += " Ayrıca " + sent.join(" ve ") + ".";
+          else delivery += " Otomatik e-posta/WhatsApp bildirimi henüz yapılandırılmadı.";
+        } else delivery += " Bildirim servisi şu anda kullanılamıyor.";
+      } catch { delivery += " Bildirim servisine ulaşılamadı."; }
+      setNotice(delivery); setSubject(""); setMessage("");
+    }
   }
   return <main style={{minHeight:"100vh",background:"#f5f7fa",padding:"24px 16px 60px",color:"#172438"}}>
     <div style={{maxWidth:720,margin:"0 auto"}}>
