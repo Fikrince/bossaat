@@ -40,7 +40,8 @@ export default function GirisPage() {
       else {
         const { data: { user } } = await supabase.auth.getUser();
         const { data: profile } = await supabase.from("profiles").select("role").eq("id", user?.id || "").maybeSingle();
-        router.push(profile?.role === "business" ? "/isletme" : profile?.role === "admin" ? "/admin" : "/panel");
+        router.replace(profile?.role === "business" ? "/isletme" : profile?.role === "admin" ? "/admin" : "/panel");
+        router.refresh();
       }
     }
     setBusy(false);
@@ -51,7 +52,7 @@ export default function GirisPage() {
     if (!email.trim()) { setMessage("Önce yukarıdaki e-posta alanına kayıtlı e-posta adresini yaz."); return; }
     setBusy(true); setMessage("");
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: "https://bossaat-ferhatcaga-04.vercel.app/sifre-yenile",
+      redirectTo: `${window.location.origin}/sifre-yenile`,
     });
     setMessage(error
       ? "Şifre yenileme isteği gönderilemedi: " + error.message
