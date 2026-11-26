@@ -126,9 +126,13 @@ export default function BusinessPage(){
   setMessage(error?"Fırsat silinemedi: "+error.message:"Fırsat silindi.");
   if(!error){if(editingId===id)resetForm();await load();}setBusy(false);
  }
- async function setStatus(id:string,status:"approved"|"rejected"){
-  if(!supabase)return;setBusy(true);const {error}=await supabase.from("reservations").update({status}).eq("id",id).eq("status","pending");
-  setMessage(error?"Talep güncellenemedi: "+error.message:"Rezervasyon talebi güncellendi.");
+ async function setStatus(id:string,status:"approved"|"rejected"|"completed"){
+  if(!supabase)return;
+  const current=requests.find(r=>r.id===id);
+  const expectedStatus=status==="completed"?"approved":"pending";
+  if(!current||current.status!==expectedStatus){setMessage("Rezervasyonun mevcut durumundan bu işleme izin verilmiyor.");return;}
+  setBusy(true);const {error}=await supabase.from("reservations").update({status}).eq("id",id).eq("status",expectedStatus);
+  setMessage(error?"Talep güncellenemedi: "+error.message:status==="completed"?"Randevu tamamlandı olarak işaretlendi.":"Rezervasyon talebi güncellendi.");
   if(!error)await load();setBusy(false);
  }
  async function logout(){await supabase?.auth.signOut();router.replace("/");}
@@ -147,6 +151,6 @@ export default function BusinessPage(){
  {offerPhoto&&<p>Seçilen fotoğraf: {offerPhoto.name}</p>}
  <button className="submit-btn" disabled={!businesses.length||busy}>{busy?"Kaydediliyor…":editingId?"Değişiklikleri kaydet":"Fırsatı kaydet"}</button>{editingId&&<button type="button" className="quiet-btn" style={{gridColumn:"1/-1",color:"#34465b",borderColor:"#d5dce4"}} onClick={resetForm}>Düzenlemeden vazgeç</button>}</form>
  <h2>Yayınladığım fırsatlar ({offers.length})</h2>{offers.length?offers.map(o=><div className="admin-row" key={o.id}><div><b>{o.title}</b><span>{new Date(o.starts_at).toLocaleString("tr-TR")} · {o.offer_price} ₺ · {o.status}</span></div><div className="admin-actions"><button disabled={busy} onClick={()=>editOffer(o)}>Düzenle</button><button disabled={busy} onClick={()=>updateOfferStatus(o.id,o.status==="published"?"paused":"published")}>{o.status==="published"?"Durdur":"Yayınla"}</button><button disabled={busy} onClick={()=>deleteOffer(o.id)}>Sil</button></div></div>):<div className="empty">Henüz fırsatın yok.</div>}
- <h2 style={{marginTop:36}}>Rezervasyon talepleri ({requests.length})</h2>{requests.length?requests.map(r=><div className="admin-row" key={r.id}><div><b>{r.offers?.title||"Randevu talebi"}</b><span>{r.customer_name} · {r.customer_phone} · {r.status}</span></div><div className="admin-actions">{r.status==="pending"?<><button disabled={busy} onClick={()=>setStatus(r.id,"approved")}>Onayla</button><button disabled={busy} onClick={()=>setStatus(r.id,"rejected")}>Reddet</button></>:<span>İşlem tamamlandı</span>}</div></div>):<div className="empty">Henüz rezervasyon talebi yok.</div>}
+ <h2 style={{marginTop:36}}>Rezervasyon talepleri ({requests.length})</h2>{requests.length?requests.map(r=><div className="admin-row" key={r.id}><div><b>{r.offers?.title||"Randevu talebi"}</b><span>{r.customer_name} · {r.customer_phone} · {r.status}</span></div><div className="admin-actions">{r.status==="pending"?<><button disabled={busy} onClick={()=>setStatus(r.id,"approved")}>Onayla</button><button disabled={busy} onClick={()=>setStatus(r.id,"rejected")}>Reddet</button></>:r.status==="approved"?<button disabled={busy} onClick={()=>setStatus(r.id,"completed")}>Tamamlandı</button>:<span>{r.status==="completed"?"Tamamlandı":r.status==="rejected"?"Reddedildi":r.status==="cancelled"?"İptal edildi":r.status}</span>}</div></div>):<div className="empty">Henüz rezervasyon talebi yok.</div>}
  </section></main>;
 }
