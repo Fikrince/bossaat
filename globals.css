@@ -9,3 +9,21 @@
 .status-strip{background:#eaf0f5;border-radius:5px;padding:13px 16px;font-size:12px;color:#50647b;margin:22px 0 34px}.offer-form{display:grid;grid-template-columns:1fr 1fr;gap:13px;background:#fff;border:1px solid #e5e9ef;border-radius:7px;padding:20px;margin-bottom:38px}.offer-form label{font-size:11px;color:#667589;display:block}.offer-form input,.offer-form select,.offer-form textarea{width:100%;display:block;margin-top:7px;padding:11px;border:1px solid #dfe5eb;border-radius:4px;background:#fff;color:#203148}.offer-form label:nth-last-child(1){grid-column:1/-1}.offer-form button{grid-column:1/-1}@media(max-width:600px){.offer-form{grid-template-columns:1fr}}
 
 .footer-legal{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.footer-legal a{color:#d7e0e9}.auth-switch button{border:0;background:transparent;color:#1d3856;font-weight:700;cursor:pointer;padding:4px 6px}.auth-switch button:hover,.footer-legal a:hover{text-decoration:underline}.auth-card h2{font:700 18px Manrope;margin:24px 0 8px}.auth-card.wide>p{line-height:1.8}.auth-card.wide .auth-message{margin-top:24px}@media(max-width:600px){.footer-legal{gap:10px}.footer-legal a{font-size:10px}}
+
+
+/* Discovery and empty-state polish */
+.empty-state{padding:42px 24px 38px;text-align:center;border:1px solid #e3e9ef;border-radius:10px;background:radial-gradient(circle at 50% 0%,#edf2f7 0,transparent 62%),#fbfcfd}
+.empty-symbol{width:54px;height:54px;margin:0 auto 15px;display:grid;place-items:center;border-radius:16px;background:#13243a;color:#dbe4ed;font:800 24px Manrope;box-shadow:0 10px 24px #0b142322}
+.empty-state h3{font:800 21px Manrope;color:#17283d;margin:0 0 8px}
+.empty-state p{max-width:480px;margin:0 auto;color:#778697;font-size:12px;line-height:1.8}
+.empty-cta{display:inline-flex;margin-top:20px;padding:12px 17px;border-radius:5px;background:#14263d;color:#fff;font-size:11px;font-weight:700}
+.explore-band{padding:64px 0 72px;background:#f4f6f8;border-top:1px solid #e9edf1;border-bottom:1px solid #e9edf1}
+.explore-band h2{font:800 31px Manrope;letter-spacing:-.04em;margin:10px 0 8px;color:#17283d}
+.explore-copy{max-width:570px;color:#788697;font-size:13px;line-height:1.8;margin:0}
+.explore-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px}
+.explore-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px;border:1px solid #e0e6ec;border-radius:8px;background:#fff;text-align:left;cursor:pointer;transition:transform .18s,box-shadow .18s}
+.explore-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px #13243a12}
+.explore-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:11px;background:#edf2f6;color:#203a57;font-size:21px}
+.explore-card b{font:700 16px Manrope;color:#1b2d43}
+.explore-card small{font-size:11px;color:#8190a0}
+@media(max-width:600px){.explore-band{padding:48px 0}.explore-band h2{font-size:26px}.explore-grid{grid-template-columns:1fr;gap:10px}.explore-card{padding:17px;display:grid;grid-template-columns:42px 1fr;column-gap:12px}.explore-icon{grid-row:span 2}.explore-card small{align-self:start}}
