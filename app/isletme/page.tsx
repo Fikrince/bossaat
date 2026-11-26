@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 type Business={id:string;name:string;status:string;image_url:string|null};
-type Offer={id:string;title:string;category:string;district:string;description:string|null;starts_at:string;original_price:number;offer_price:number;status:string};
+type Offer={id:string;title:string;category:string;district:string;description:string|null;starts_at:string;original_price:number;offer_price:number;status:string;image_url:string|null};
 type RequestRow={id:string;customer_name:string;customer_phone:string;status:string;offers?:{title?:string}};
 export default function BusinessPage(){
  const router=useRouter();
@@ -18,6 +18,7 @@ export default function BusinessPage(){
  const [message,setMessage]=useState("Yükleniyor…");
  const [busy,setBusy]=useState(false);
  const [photoBusy,setPhotoBusy]=useState(false);
+ const [offerPhoto,setOfferPhoto]=useState<File|null>(null);
  async function load(){
   if(!supabase){setMessage("Veritabanı bağlantısı henüz yapılandırılmadı.");return;}
   const {data:{user},error:authError}=await supabase.auth.getUser();
@@ -89,7 +90,17 @@ export default function BusinessPage(){
    setMessage("Tarih gelecekte olmalı. İndirimli fiyat normal fiyattan yüksek olamaz.");return;
   }
   setBusy(true);setMessage("");
-  const values={title:title.trim(),category,district:district.trim(),description:description.trim(),starts_at:start.toISOString(),original_price:originalNum,offer_price:priceNum};
+  let offerImageUrl:string|undefined;
+  if(offerPhoto){
+   const {data:{user},error:authError}=await supabase.auth.getUser();
+   if(authError||!user){setMessage("Fotoğraf yüklemek için tekrar giriş yap.");setBusy(false);return;}
+   const ext=offerPhoto.type==="image/png"?"png":offerPhoto.type==="image/webp"?"webp":"jpg";
+   const path=user.id+"/"+businessId+"/offers/"+crypto.randomUUID()+"."+ext;
+   const {error:uploadError}=await supabase.storage.from("business-photos").upload(path,offerPhoto,{contentType:offerPhoto.type,upsert:false});
+   if(uploadError){setMessage("Fırsat fotoğrafı yüklenemedi: "+uploadError.message);setBusy(false);return;}
+   offerImageUrl=supabase.storage.from("business-photos").getPublicUrl(path).data.publicUrl;
+  }
+  const values={title:title.trim(),category,district:district.trim(),description:description.trim(),starts_at:start.toISOString(),original_price:originalNum,offer_price:priceNum,...(offerImageUrl?{image_url:offerImageUrl}:{})};
   const result=editingId
    ? await supabase.from("offers").update(values).eq("id",editingId)
    : await supabase.from("offers").insert({...values,business_id:businessId,status:businesses.find(b=>b.id===businessId)?.status==="approved"?"published":"draft"});
