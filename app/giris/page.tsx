@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase, supabaseReady } from "@/lib/supabase";
 
 export default function GirisPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -19,7 +18,7 @@ export default function GirisPage() {
   const [busy, setBusy] = useState(false);
 
   function safeNextPath() {
-    const next = searchParams.get("next");
+    const next = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null;
     return next && next.startsWith("/") && !next.startsWith("//") ? next : "";
   }
 
