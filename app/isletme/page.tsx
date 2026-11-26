@@ -86,7 +86,7 @@ export default function BusinessPage(){
  async function saveOffer(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault();if(!supabase||!businessId)return;
   const originalNum=Number(original),priceNum=Number(price),start=new Date(startsAt);
-  if(!startsAt||Number.isNaN(start.getTime())||!Number.isFinite(originalNum)||!Number.isFinite(priceNum)||originalNum<0||priceNum<0||priceNum>originalNum||start<=new Date()){
+  if(!startsAt||Number.isNaN(start.getTime())||!Number.isFinite(originalNum)||!Number.isFinite(priceNum)||originalNum<=0||priceNum<0||priceNum>originalNum||start<=new Date()){
    setMessage("Tarih gelecekte olmalı. İndirimli fiyat normal fiyattan yüksek olamaz.");return;
   }
   if(offerPhoto&&![ "image/jpeg","image/png","image/webp" ].includes(offerPhoto.type)){setMessage("Fırsat fotoğrafı JPG, PNG veya WEBP olmalı.");return;}
@@ -140,7 +140,7 @@ export default function BusinessPage(){
  <label>Kategori<select value={category} onChange={e=>setCategory(e.target.value)}><option>Kuaför</option><option>Berber</option><option>Güzellik</option><option>Bakım</option><option>Diğer</option></select></label>
  <label>İlçe<input required maxLength={80} value={district} onChange={e=>setDistrict(e.target.value)}/></label>
  <label>Randevu başlangıcı<input required type="datetime-local" value={startsAt} onChange={e=>setStartsAt(e.target.value)}/></label>
- <label>Normal fiyat (₺)<input required type="number" min="0" step="0.01" value={original} onChange={e=>setOriginal(e.target.value)}/></label>
+ <label>Normal fiyat (₺)<input required type="number" min="0.01" step="0.01" value={original} onChange={e=>setOriginal(e.target.value)}/></label>
  <label>İndirimli fiyat (₺)<input required type="number" min="0" step="0.01" value={price} onChange={e=>setPrice(e.target.value)}/></label>
  <label>Açıklama<textarea maxLength={500} value={description} onChange={e=>setDescription(e.target.value)}/></label>
  <label>Fırsat fotoğrafı (JPG, PNG veya WEBP · en fazla 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setOfferPhoto(e.target.files?.[0]||null)}/></label>
