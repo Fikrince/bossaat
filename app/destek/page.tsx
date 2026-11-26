@@ -13,9 +13,11 @@ export default function SupportPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   useEffect(() => {
+    const client = supabase;
+    if (!client) { setNotice("Veritabanı bağlantısı şu anda kullanılamıyor."); return; }
     let active = true;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await client.auth.getUser();
       if (!user) { router.replace("/giris?next=%2Fdestek"); return; }
       if (active) setReady(true);
     })();
@@ -23,10 +25,12 @@ export default function SupportPage() {
   }, [router]);
   async function send(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const client = supabase;
+    if (!client) { setNotice("Veritabanı bağlantısı şu anda kullanılamıyor. Lütfen daha sonra tekrar dene."); return; }
     setBusy(true); setNotice("");
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await client.auth.getUser();
     if (!user) { router.replace("/giris?next=%2Fdestek"); return; }
-    const { error } = await supabase.from("support_messages").insert({
+    const { error } = await client.from("support_messages").insert({
       user_id: user.id, subject: subject.trim(), category, message: message.trim()
     });
     setBusy(false);
