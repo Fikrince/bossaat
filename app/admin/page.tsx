@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-type Business = {id:string;name:string;category:string;district:string;phone:string;status:string};
+type Business = {id:string;name:string;category:string;district:string;status:string};
 type Offer = {id:string;title:string;district:string;status:string;businesses?:{name?:string;status?:string}};
 type Reservation = {id:string;customer_name:string;customer_phone:string;status:string;offers?:{title?:string}};
 export default function AdminPage(){
@@ -21,7 +21,7 @@ export default function AdminPage(){
   const {data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
   if(profile?.role!=="admin"){setMessage("Bu sayfa yalnızca yönetici hesabına açıktır.");setLoading(false);return;}
   const [b,o,r]=await Promise.all([
-   supabase.from("businesses").select("id,name,category,district,phone,status").order("created_at",{ascending:false}),
+   supabase.from("businesses").select("id,name,category,district,status").order("created_at",{ascending:false}),
    supabase.from("offers").select("id,title,district,status,businesses(name,status)").order("created_at",{ascending:false}),
    supabase.from("reservations").select("id,customer_name,customer_phone,status,offers(title)").order("created_at",{ascending:false})
   ]);
@@ -49,7 +49,7 @@ export default function AdminPage(){
  async function logout(){await supabase?.auth.signOut();router.push("/");}
  return <main className="dashboard"><header className="dash-nav"><Link className="brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT<small>YÖNETİM PANELİ</small></span></Link><button className="quiet-btn" onClick={logout}>Çıkış yap</button></header><section className="dash-content"><span className="eyebrow dark">PLATFORM YÖNETİMİ</span><h1>Yönetici paneli</h1><p>İşletmeleri, fırsatları ve rezervasyonları yönet.</p><div className="status-strip">{message}</div>
  {loading?<p>Yükleniyor…</p>:message.includes("yalnızca yönetici")?<p>Yönetici yetkisi bulunamadı. Normal kullanıcı hesapları bu alanı göremez.</p>:<>
- <h2>İşletme başvuruları ({businesses.length})</h2>{businesses.length?businesses.map(b=><div className="admin-row" key={b.id}><div><b>{b.name}</b><span>{b.category} · {b.district} · {b.phone} · {b.status}</span></div><div className="admin-actions">{b.status==="pending"?<><button onClick={()=>updateBusiness(b.id,"approved")}>Onayla</button><button onClick={()=>updateBusiness(b.id,"rejected")}>Reddet</button></>:b.status==="approved"?<><span className="status-approved">Onaylandı</span><button onClick={()=>updateBusiness(b.id,"suspended")}>Askıya al</button></>:b.status==="suspended"?<><span className="status-suspended">Askıya alındı</span><button onClick={()=>updateBusiness(b.id,"approved")}>Yeniden etkinleştir</button></>:<span className="status-rejected">Reddedildi</span>}</div></div>):<div className="empty">İşletme kaydı yok.</div>}
+ <h2>İşletme başvuruları ({businesses.length})</h2>{businesses.length?businesses.map(b=><div className="admin-row" key={b.id}><div><b>{b.name}</b><span>{b.category} · {b.district} · {b.status}</span></div><div className="admin-actions">{b.status==="pending"?<><button onClick={()=>updateBusiness(b.id,"approved")}>Onayla</button><button onClick={()=>updateBusiness(b.id,"rejected")}>Reddet</button></>:b.status==="approved"?<><span className="status-approved">Onaylandı</span><button onClick={()=>updateBusiness(b.id,"suspended")}>Askıya al</button></>:b.status==="suspended"?<><span className="status-suspended">Askıya alındı</span><button onClick={()=>updateBusiness(b.id,"approved")}>Yeniden etkinleştir</button></>:<span className="status-rejected">Reddedildi</span>}</div></div>):<div className="empty">İşletme kaydı yok.</div>}
  <h2>Fırsatlar ({offers.length})</h2>{offers.length?offers.map(o=><div className="admin-row" key={o.id}><div><b>{o.title}</b><span>{o.businesses?.name||"İşletme"} · {o.district} · {o.status}</span></div><div className="admin-actions"><button onClick={()=>updateOffer(o.id,"published")}>Yayınla</button><button onClick={()=>updateOffer(o.id,"paused")}>Durdur</button></div></div>):<div className="empty">Fırsat yok.</div>}
  <h2>Rezervasyonlar ({reservations.length})</h2>{reservations.length?reservations.map(r=><div className="admin-row" key={r.id}><div><b>{r.offers?.title||"Rezervasyon"}</b><span>{r.customer_name} · {r.customer_phone} · {r.status}</span></div><div className="admin-actions">{r.status==="pending"?<><button onClick={()=>updateReservation(r.id,"approved")}>Onayla</button><button onClick={()=>updateReservation(r.id,"rejected")}>Reddet</button></>:r.status==="approved"?<button onClick={()=>updateReservation(r.id,"completed")}>Tamamlandı</button>:<span>{r.status==="rejected"?"Reddedildi":r.status==="completed"?"Tamamlandı":r.status==="cancelled"?"İptal edildi":r.status}</span>}</div></div>):<div className="empty">Rezervasyon yok.</div>}
  </>}
