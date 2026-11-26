@@ -63,7 +63,7 @@ export default function GirisPage() {
     <Link className="brand auth-brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT<small>YEREL FIRSAT AĞI</small></span></Link>
     <span className="eyebrow dark">BOŞSAAT HESABI</span>
     <h1>{mode === "login" ? "Tekrar hoş geldin." : mode === "signup" ? "Aramıza katıl." : "Şifreni yenile."}</h1>
-    <p>{mode === "login" ? "Fırsatlarını ve rezervasyon taleplerini takip et." : "Ücretsiz müşteri hesabını oluştur. Tüm alanları doldur."}</p>
+    <p>{mode === "login" ? "Fırsatlarını ve rezervasyon taleplerini takip et." : mode === "signup" ? "Ücretsiz müşteri hesabını oluştur. Tüm alanları doldur." : "Kayıtlı e-posta adresini yaz. Sana şifre yenileme bağlantısı gönderelim."}</p>
     <form onSubmit={submit}>
       {mode === "signup" && <>
         <label>Ad<input required value={firstName} onChange={e=>setFirstName(e.target.value)} autoComplete="given-name" /></label>
