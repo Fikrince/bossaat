@@ -22,13 +22,14 @@ export default function AdminPage(){
   if(authError||!user){router.replace("/giris?next=%2Fadmin");return;}
   const {data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
   if(profile?.role!=="admin"){setMessage("Bu sayfa yalnızca yönetici hesabına açıktır.");setLoading(false);return;}
-  const [b,o,r]=await Promise.all([
+  const [b,o,r,s]=await Promise.all([
    supabase.from("businesses").select("id,name,category,district,status").order("created_at",{ascending:false}),
    supabase.from("offers").select("id,title,district,status,businesses(name,status)").order("created_at",{ascending:false}),
-   supabase.from("reservations").select("id,customer_name,customer_phone,status,offers(title)").order("created_at",{ascending:false})
+   supabase.from("reservations").select("id,customer_name,customer_phone,status,offers(title)").order("created_at",{ascending:false}),
+   supabase.from("support_messages").select("id,user_id,subject,category,message,status,created_at").order("created_at",{ascending:false})
   ]);
-  setBusinesses((b.data||[]) as Business[]);setOffers((o.data||[]) as Offer[]);setReservations((r.data||[]) as Reservation[]);
-  const err=b.error||o.error||r.error;setMessage(err?"Bazı yönetim kayıtları yüklenemedi: "+err.message:"Yönetim verileri güncel.");
+  setBusinesses((b.data||[]) as Business[]);setOffers((o.data||[]) as Offer[]);setReservations((r.data||[]) as Reservation[]);setSupportMessages((s.data||[]) as SupportMessage[]);
+  const err=b.error||o.error||r.error||s.error;setMessage(err?"Bazı yönetim kayıtları yüklenemedi: "+err.message:"Yönetim verileri güncel.");
   setLoading(false);
  }
  useEffect(()=>{load();},[]);
