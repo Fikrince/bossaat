@@ -36,6 +36,17 @@ export default function GirisPage() {
     setBusy(false);
   }
 
+  async function sendReset() {
+    if (!supabase) { setMessage("Hesap sistemi şu anda kullanılamıyor."); return; }
+    if (!email.trim()) { setMessage("Şifre yenileme bağlantısı için önce e-posta adresini yaz."); return; }
+    setBusy(true); setMessage("");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/sifre-yenile`,
+    });
+    setMessage(error ? error.message : "Şifre yenileme bağlantısı e-posta adresine gönderildiyse gelen kutunu ve Spam klasörünü kontrol et.");
+    setBusy(false);
+  }
+
   return <main className="auth-shell"><section className="auth-card">
     <Link className="brand auth-brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT<small>YEREL FIRSAT AĞI</small></span></Link>
     <span className="eyebrow dark">BOŞSAAT HESABI</span><h1>{mode === "login" ? "Tekrar hoş geldin." : "Aramıza katıl."}</h1>
@@ -46,6 +57,7 @@ export default function GirisPage() {
       <label>Şifre<input required minLength={8} type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
       <button className="submit-btn" disabled={busy}>{busy ? "İşleniyor…" : mode === "login" ? "Giriş yap" : "Hesap oluştur"}</button>
     </form>
+    {mode === "login" && <button type="button" className="back-link" onClick={sendReset} disabled={busy}>Şifremi unuttum</button>}
     {message && <div className="auth-message">{message}</div>}
     {!supabaseReady && <div className="auth-message">Not: Canlı üyelik için Supabase URL ve anonim anahtarının Vercel'e eklenmesi gerekiyor.</div>}
     <div className="auth-switch">{mode === "login" ? "Henüz hesabın yok mu?" : "Zaten hesabın var mı?"} <button type="button" onClick={()=>{setMode(mode === "login" ? "signup" : "login");setMessage("");}}>{mode === "login" ? "Üye ol" : "Giriş yap"}</button></div>
