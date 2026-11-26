@@ -52,7 +52,7 @@ export default function SupportPage() {
           <label style={{display:"grid",gap:7,fontWeight:650}}>Mesajın
             <textarea required minLength={10} maxLength={3000} rows={6} value={message} onChange={e=>setMessage(e.target.value)} placeholder="Yaşadığın sorunu ayrıntılı anlat…" style={{padding:13,border:"1px solid #d6dee8",borderRadius:10,fontSize:16,resize:"vertical"}}/>
           </label>
-          <button disabled={busy} type="submit" style={{padding:15,border:0,borderRadius:11,background:"#172d46",color:"#fff",fontSize:16,fontWeight:800,opacity:busy?.65:1}}>{busy?"Gönderiliyor…":"Mesajı gönder"}</button>
+          <button disabled={busy} type="submit" style={{padding:15,border:0,borderRadius:11,background:"#172d46",color:"#fff",fontSize:16,fontWeight:800,opacity:busy ? 0.65 : 1}}>{busy?"Gönderiliyor…":"Mesajı gönder"}</button>
         </form>}
         {notice && <p role="status" style={{background:"#eef5f1",padding:13,borderRadius:10,lineHeight:1.5}}>{notice}</p>}
         <div style={{borderTop:"1px solid #e8edf2",marginTop:24,paddingTop:18,color:"#637287",lineHeight:1.7}}>
