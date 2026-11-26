@@ -32,15 +32,21 @@ export default function BusinessPage(){
   if(list.length){
    const ids=list.map(x=>x.id);
    if(!ids.includes(businessId))setBusinessId(list[0].id);
-   const [o,r]=await Promise.all([
-    supabase.from("offers").select("id,title,category,district,description,starts_at,original_price,offer_price,status,image_url").in("business_id",ids).order("created_at",{ascending:false}),
-    supabase.from("reservations").select("id,customer_name,customer_phone,status,offers(title,business_id)").order("created_at",{ascending:false})
-   ]);
+   const o=await supabase.from("offers").select("id,title,category,district,description,starts_at,original_price,offer_price,status,image_url").in("business_id",ids).order("created_at",{ascending:false});
    if(o.error)setMessage("Fırsatlar yüklenemedi: "+o.error.message);
-   setOffers((o.data||[]) as Offer[]);
-   if(r.error)setMessage("Rezervasyonlar yüklenemedi: "+r.error.message);
-   setRequests(((r.data||[]) as any[]).filter(x=>ids.includes(x.offers?.business_id)) as RequestRow[]);
-   if(!error&&!o.error&&!r.error)setMessage(list.some(x=>x.status==="pending")?"İşletme başvurun yönetici onayı bekliyor.":"İşletme panelin güncel.");
+   const ownOffers=(o.data||[]) as Offer[];
+   setOffers(ownOffers);
+   const offerIds=ownOffers.map(item=>item.id);
+   let requestRows:RequestRow[]=[];
+   let requestError: string|undefined;
+   if(offerIds.length){
+    const r=await supabase.from("reservations").select("id,customer_name,customer_phone,status,offers(title)").in("offer_id",offerIds).order("created_at",{ascending:false});
+    if(r.error)requestError=r.error.message;
+    else requestRows=(r.data||[]) as RequestRow[];
+   }
+   if(requestError)setMessage("Rezervasyonlar yüklenemedi: "+requestError);
+   setRequests(requestRows);
+   if(!o.error&&!requestError)setMessage(list.some(x=>x.status==="pending")?"İşletme başvurun yönetici onayı bekliyor.":"İşletme panelin güncel.");
   }else setMessage("Henüz işletme kaydın yok. Önce işletmeni kaydet.");
  }
  useEffect(()=>{load();},[]);
