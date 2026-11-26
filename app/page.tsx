@@ -23,7 +23,7 @@ export default function HomePage(){
   const {data:{user},error:authError}=await supabase.auth.getUser();
   if(authError||!user){const next="/?offer="+encodeURIComponent(selected.id)+"#firsatlar";window.location.assign("/giris?next="+encodeURIComponent(next));setBusy(false);return;}
   const {error}=await supabase.from("reservations").insert({offer_id:selected.id,customer_id:user.id,customer_name:customerName.trim(),customer_phone:phone.trim()});
-  setMessage(error?(error.code==="23505"?"Bu fırsat için zaten etkin bir rezervasyon talebin bulunuyor.": "Talep gönderilemedi: "+error.message):"Talebin işletmeye iletildi. Onay durumunu müşteri panelinden takip edebilirsin.");
+  setMessage(error?(error.code==="23505"?"Bu randevu saati için başka bir müşterinin etkin talebi var. Lütfen başka bir fırsat seç.": "Talep gönderilemedi: "+error.message):"Talebin işletmeye iletildi. Onay durumunu müşteri panelinden takip edebilirsin.");
   if(!error){setSelected(null);setCustomerName("");setPhone("");}
   setBusy(false);
  }
