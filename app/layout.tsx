@@ -12,7 +12,6 @@ export const metadata: Metadata = {
   description:
     "Yakınındaki kuaför, berber ve güzellik salonlarının boş randevu saatlerini indirimli fiyatlarla keşfet. Fırsatı bul, rezervasyon talebini gönder.",
   applicationName: "BOŞSAAT",
-  alternates: { canonical: "/" },
   robots: {
     index: true,
     follow: true,
@@ -27,7 +26,6 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "tr_TR",
-    url: siteUrl,
     siteName: "BOŞSAAT",
     title: "BOŞSAAT | Yakınındaki İndirimli Randevu Fırsatları",
     description:
