@@ -13,6 +13,7 @@ export default function SifreYenilePage() {
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
   const [recoveryReady, setRecoveryReady] = useState(false);
+  const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -23,6 +24,8 @@ export default function SifreYenilePage() {
 
     let alive = true;
     let confirmed = false;
+    let subscription: { unsubscribe: () => void } | null = null;
+    let fallbackTimer: ReturnType<typeof window.setTimeout> | null = null;
 
     const finish = (ok: boolean, errorMessage?: string) => {
       if (!alive || confirmed) return;
@@ -64,16 +67,20 @@ export default function SifreYenilePage() {
       const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
         if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) finish(true);
       });
+      subscription = listener.subscription;
       // Allow the client to process legacy URL-fragment tokens before showing an error.
-      window.setTimeout(async () => {
+      fallbackTimer = window.setTimeout(async () => {
         if (confirmed || !alive) return;
         const { data: latest } = await supabase.auth.getSession();
         finish(Boolean(latest.session));
       }, 900);
-      return () => listener.subscription.unsubscribe();
     })();
 
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
+      subscription?.unsubscribe();
+    };
   }, []);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -95,6 +102,7 @@ export default function SifreYenilePage() {
     } else {
       setMessage("Şifren başarıyla güncellendi. Artık yeni şifrenle giriş yapabilirsin.");
       setRecoveryReady(false);
+      setCompleted(true);
       await supabase.auth.signOut();
     }
     setBusy(false);
@@ -111,8 +119,7 @@ export default function SifreYenilePage() {
       <button className="submit-btn" disabled={busy}>{busy ? "Kaydediliyor…" : "Yeni şifremi kaydet"}</button>
     </form> : null}
     {message && <div className="auth-message" role="status">{message}</div>}
-    {!checking && !recoveryReady && <Link className="submit-btn" style={{display:"block",textAlign:"center",marginTop:18}} href="/giris">Yeni bağlantı iste / Giriş yap</Link>}
-    {!checking && !recoveryReady && message.includes("başarıyla") && <Link className="submit-btn" style={{display:"block",textAlign:"center",marginTop:18}} href="/giris">Yeni şifremle giriş yap</Link>}
+    {!checking && !recoveryReady && <Link className="submit-btn" style={{display:"block",textAlign:"center",marginTop:18}} href="/giris">{completed ? "Yeni şifremle giriş yap" : "Yeni bağlantı iste / Giriş yap"}</Link>}
     <Link className="back-link" href="/giris">← Giriş sayfasına dön</Link>
   </section></main>;
 }
