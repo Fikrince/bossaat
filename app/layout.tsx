@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import "../globals.css";
 
 const siteUrl = "https://bossaat-ferhatcaga-04.vercel.app";
 
