@@ -56,8 +56,6 @@ export default function AdminPage(){
    const publicUrl=supabase.storage.from("business-photos").getPublicUrl(newPath).data.publicUrl;
    const {error:updateError}=await supabase.from("businesses").update({image_url:publicUrl}).eq("id",b.id);
    if(updateError)throw updateError;
-   const oldPath=photoPath(b.image_url);
-   if(oldPath)await supabase.storage.from("business-photos").remove([oldPath]);
    setBusinesses(prev=>prev.map(item=>item.id===b.id?{...item,image_url:publicUrl}:item));
    const oldPath=photoPath(b.image_url);
    let cleanupWarning="";
