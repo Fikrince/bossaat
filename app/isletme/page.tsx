@@ -33,7 +33,7 @@ export default function BusinessPage(){
    const ids=list.map(x=>x.id);
    if(!ids.includes(businessId))setBusinessId(list[0].id);
    const [o,r]=await Promise.all([
-    supabase.from("offers").select("id,title,category,district,description,starts_at,original_price,offer_price,status").in("business_id",ids).order("created_at",{ascending:false}),
+    supabase.from("offers").select("id,title,category,district,description,starts_at,original_price,offer_price,status,image_url").in("business_id",ids).order("created_at",{ascending:false}),
     supabase.from("reservations").select("id,customer_name,customer_phone,status,offers(title,business_id)").order("created_at",{ascending:false})
    ]);
    if(o.error)setMessage("Fırsatlar yüklenemedi: "+o.error.message);
@@ -45,12 +45,12 @@ export default function BusinessPage(){
  }
  useEffect(()=>{load();},[]);
  function resetForm(){
-  setEditingId("");setTitle("");setCategory("Kuaför");setDistrict("");setDescription("");setStartsAt("");setOriginal("");setPrice("");
+  setEditingId("");setTitle("");setCategory("Kuaför");setDistrict("");setDescription("");setStartsAt("");setOriginal("");setPrice("");setOfferPhoto(null);
  }
  function editOffer(o:Offer){
   setEditingId(o.id);setTitle(o.title);setCategory(o.category);setDistrict(o.district);setDescription(o.description||"");
   const local=new Date(o.starts_at);const offset=local.getTimezoneOffset();setStartsAt(new Date(local.getTime()-offset*60000).toISOString().slice(0,16));
-  setOriginal(String(o.original_price));setPrice(String(o.offer_price));
+  setOriginal(String(o.original_price));setPrice(String(o.offer_price));setOfferPhoto(null);
   document.getElementById("offer-form")?.scrollIntoView({behavior:"smooth"});
  }
  async function uploadBusinessPhoto(e:React.ChangeEvent<HTMLInputElement>){
@@ -89,8 +89,11 @@ export default function BusinessPage(){
   if(!startsAt||Number.isNaN(start.getTime())||!Number.isFinite(originalNum)||!Number.isFinite(priceNum)||originalNum<0||priceNum<0||priceNum>originalNum||start<=new Date()){
    setMessage("Tarih gelecekte olmalı. İndirimli fiyat normal fiyattan yüksek olamaz.");return;
   }
+  if(offerPhoto&&![ "image/jpeg","image/png","image/webp" ].includes(offerPhoto.type)){setMessage("Fırsat fotoğrafı JPG, PNG veya WEBP olmalı.");return;}
+  if(offerPhoto&&offerPhoto.size>5*1024*1024){setMessage("Fırsat fotoğrafı en fazla 5 MB olabilir.");return;}
   setBusy(true);setMessage("");
   let offerImageUrl:string|undefined;
+  let uploadedOfferPath:string|undefined;
   if(offerPhoto){
    const {data:{user},error:authError}=await supabase.auth.getUser();
    if(authError||!user){setMessage("Fotoğraf yüklemek için tekrar giriş yap.");setBusy(false);return;}
@@ -98,14 +101,17 @@ export default function BusinessPage(){
    const path=user.id+"/"+businessId+"/offers/"+crypto.randomUUID()+"."+ext;
    const {error:uploadError}=await supabase.storage.from("business-photos").upload(path,offerPhoto,{contentType:offerPhoto.type,upsert:false});
    if(uploadError){setMessage("Fırsat fotoğrafı yüklenemedi: "+uploadError.message);setBusy(false);return;}
+   uploadedOfferPath=path;
    offerImageUrl=supabase.storage.from("business-photos").getPublicUrl(path).data.publicUrl;
   }
   const values={title:title.trim(),category,district:district.trim(),description:description.trim(),starts_at:start.toISOString(),original_price:originalNum,offer_price:priceNum,...(offerImageUrl?{image_url:offerImageUrl}:{})};
   const result=editingId
    ? await supabase.from("offers").update(values).eq("id",editingId)
    : await supabase.from("offers").insert({...values,business_id:businessId,status:businesses.find(b=>b.id===businessId)?.status==="approved"?"published":"draft"});
-  if(result.error)setMessage("Fırsat kaydedilemedi: "+result.error.message);
-  else{setMessage(editingId?"Fırsat bilgileri güncellendi.":businesses.find(b=>b.id===businessId)?.status==="approved"?"Fırsatın yayınlandı.":"İşletmen onaylanana kadar fırsat taslak olarak kaydedildi.");resetForm();await load();}
+  if(result.error){
+   if(uploadedOfferPath)await supabase.storage.from("business-photos").remove([uploadedOfferPath]);
+   setMessage("Fırsat kaydedilemedi: "+result.error.message);
+  } else{setMessage(editingId?"Fırsat bilgileri güncellendi.":businesses.find(b=>b.id===businessId)?.status==="approved"?"Fırsatın yayınlandı.":"İşletmen onaylanana kadar fırsat taslak olarak kaydedildi.");resetForm();await load();}
   setBusy(false);
  }
  async function updateOfferStatus(id:string,status:"published"|"paused"){
@@ -137,6 +143,8 @@ export default function BusinessPage(){
  <label>Normal fiyat (₺)<input required type="number" min="0" step="0.01" value={original} onChange={e=>setOriginal(e.target.value)}/></label>
  <label>İndirimli fiyat (₺)<input required type="number" min="0" step="0.01" value={price} onChange={e=>setPrice(e.target.value)}/></label>
  <label>Açıklama<textarea maxLength={500} value={description} onChange={e=>setDescription(e.target.value)}/></label>
+ <label>Fırsat fotoğrafı (JPG, PNG veya WEBP · en fazla 5 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setOfferPhoto(e.target.files?.[0]||null)}/></label>
+ {offerPhoto&&<p>Seçilen fotoğraf: {offerPhoto.name}</p>}
  <button className="submit-btn" disabled={!businesses.length||busy}>{busy?"Kaydediliyor…":editingId?"Değişiklikleri kaydet":"Fırsatı kaydet"}</button>{editingId&&<button type="button" className="quiet-btn" style={{gridColumn:"1/-1",color:"#34465b",borderColor:"#d5dce4"}} onClick={resetForm}>Düzenlemeden vazgeç</button>}</form>
  <h2>Yayınladığım fırsatlar ({offers.length})</h2>{offers.length?offers.map(o=><div className="admin-row" key={o.id}><div><b>{o.title}</b><span>{new Date(o.starts_at).toLocaleString("tr-TR")} · {o.offer_price} ₺ · {o.status}</span></div><div className="admin-actions"><button disabled={busy} onClick={()=>editOffer(o)}>Düzenle</button><button disabled={busy} onClick={()=>updateOfferStatus(o.id,o.status==="published"?"paused":"published")}>{o.status==="published"?"Durdur":"Yayınla"}</button><button disabled={busy} onClick={()=>deleteOffer(o.id)}>Sil</button></div></div>):<div className="empty">Henüz fırsatın yok.</div>}
  <h2 style={{marginTop:36}}>Rezervasyon talepleri ({requests.length})</h2>{requests.length?requests.map(r=><div className="admin-row" key={r.id}><div><b>{r.offers?.title||"Randevu talebi"}</b><span>{r.customer_name} · {r.customer_phone} · {r.status}</span></div><div className="admin-actions">{r.status==="pending"?<><button disabled={busy} onClick={()=>setStatus(r.id,"approved")}>Onayla</button><button disabled={busy} onClick={()=>setStatus(r.id,"rejected")}>Reddet</button></>:<span>İşlem tamamlandı</span>}</div></div>):<div className="empty">Henüz rezervasyon talebi yok.</div>}
