@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/panel/", "/admin/", "/api/"],
+      disallow: ["/panel", "/admin", "/isletme$", "/isletme/", "/sifre-yenile", "/api"],
     },
     sitemap: "https://bossaat-ferhatcaga-04.vercel.app/sitemap.xml",
     host: "https://bossaat-ferhatcaga-04.vercel.app",
