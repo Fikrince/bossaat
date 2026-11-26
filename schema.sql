@@ -187,3 +187,70 @@ grant select, update on public.profiles to authenticated;
 grant select, insert, update on public.businesses to authenticated;
 grant select, insert, update, delete on public.offers to authenticated;
 grant select, insert, update on public.reservations to authenticated;
+
+
+-- 2026-11-26: consolidated RLS policies.
+-- Keeps anonymous reads public-only while combining authenticated owner/admin
+-- permissions into one policy per table/action to avoid overlapping permissive policies.
+drop policy if exists "Admins manage businesses" on public.businesses;
+drop policy if exists "Owners create business" on public.businesses;
+drop policy if exists "Owners read own businesses" on public.businesses;
+drop policy if exists "Public can read approved businesses" on public.businesses;
+drop policy if exists "Owners update own businesses" on public.businesses;
+create policy "Anonymous read approved businesses" on public.businesses for select to anon using (status='approved');
+create policy "Authenticated read permitted businesses" on public.businesses for select to authenticated using (status='approved' or owner_id=(select auth.uid()) or private.is_admin());
+create policy "Authenticated create own pending or admin businesses" on public.businesses for insert to authenticated with check ((owner_id=(select auth.uid()) and status='pending') or private.is_admin());
+create policy "Authenticated update own or admin businesses" on public.businesses for update to authenticated using (owner_id=(select auth.uid()) or private.is_admin()) with check (owner_id=(select auth.uid()) or private.is_admin());
+
+drop policy if exists "Admins manage offers" on public.offers;
+drop policy if exists "Owners manage own offers" on public.offers;
+drop policy if exists "Public can read published offers from approved businesses" on public.offers;
+create policy "Anonymous read published approved offers" on public.offers for select to anon using (status='published' and exists(select 1 from public.businesses b where b.id=offers.business_id and b.status='approved'));
+create policy "Authenticated read permitted offers" on public.offers for select to authenticated using (
+ (status='published' and exists(select 1 from public.businesses b where b.id=offers.business_id and b.status='approved'))
+ or exists(select 1 from public.businesses b where b.id=offers.business_id and b.owner_id=(select auth.uid()))
+ or private.is_admin()
+);
+create policy "Authenticated insert own or admin offers" on public.offers for insert to authenticated with check (
+ exists(select 1 from public.businesses b where b.id=offers.business_id and b.owner_id=(select auth.uid())) or private.is_admin()
+);
+create policy "Authenticated update own or admin offers" on public.offers for update to authenticated using (
+ exists(select 1 from public.businesses b where b.id=offers.business_id and b.owner_id=(select auth.uid())) or private.is_admin()
+) with check (
+ exists(select 1 from public.businesses b where b.id=offers.business_id and b.owner_id=(select auth.uid())) or private.is_admin()
+);
+create policy "Authenticated delete own or admin offers" on public.offers for delete to authenticated using (
+ exists(select 1 from public.businesses b where b.id=offers.business_id and b.owner_id=(select auth.uid())) or private.is_admin()
+);
+
+drop policy if exists "Admins read profiles" on public.profiles;
+drop policy if exists "Users read own profile" on public.profiles;
+create policy "Authenticated read own or admin profiles" on public.profiles for select to authenticated using (id=(select auth.uid()) or private.is_admin());
+
+drop policy if exists "Admins manage reservations" on public.reservations;
+drop policy if exists "Customers create own reservation" on public.reservations;
+drop policy if exists "Customers read own reservations" on public.reservations;
+drop policy if exists "Owners read reservations for own offers" on public.reservations;
+drop policy if exists "Customers cancel own pending reservations" on public.reservations;
+drop policy if exists "Owners update reservations for own offers" on public.reservations;
+create policy "Authenticated create customer or admin reservations" on public.reservations for insert to authenticated with check (
+ private.is_admin() or (
+  customer_id=(select auth.uid())
+  and exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.role='customer')
+  and exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=reservations.offer_id and o.status='published' and o.starts_at>now() and b.status='approved')
+ )
+);
+create policy "Authenticated read permitted reservations" on public.reservations for select to authenticated using (
+ customer_id=(select auth.uid())
+ or exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=reservations.offer_id and b.owner_id=(select auth.uid()))
+ or private.is_admin()
+);
+create policy "Authenticated update permitted reservations" on public.reservations for update to authenticated using (
+ (customer_id=(select auth.uid()) and status='pending')
+ or exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=reservations.offer_id and b.owner_id=(select auth.uid()))
+ or private.is_admin()
+) with check (
+ (customer_id=(select auth.uid()) and status='cancelled')
+ or exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=reservations.offer_id and b.owner_id=(select auth.uid()))
+ or private.is_admin()
+);
