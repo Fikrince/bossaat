@@ -1,35 +1,41 @@
+"use client";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
-export default function HomePage() {
-  return (
-    <main>
-      <header className="wrap nav">
-        <Link className="brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT<small>YEREL FIRSAT AĞI</small></span></Link>
-        <nav className="nav-links"><a href="#nasil-calisir">Nasıl çalışır?</a><a href="#isletmeler">İşletmeler için</a></nav>
-        <Link className="nav-cta" href="/giris">Giriş yap / Üye ol</Link>
-      </header>
-      <section className="hero">
-        <div className="hero-grid" />
-        <div className="wrap hero-inner">
-          <div className="eyebrow"><span /> SON DAKİKA RANDEVU FIRSATLARI</div>
-          <h1>Boş kalan saatler,<br /><em>senin fırsatın.</em></h1>
-          <p className="hero-copy">Yakınındaki kuaför, berber ve güzellik işletmelerinin boş randevu saatlerini avantajlı fiyatlarla keşfet.</p>
-          <a className="hero-button" href="#firsatlar">Fırsatları keşfet →</a>
-          <div className="hero-foot"><span>✓ İndirimli randevular</span><span>✓ Kolay talep</span><span>✓ İşletmeden onay</span></div>
-        </div>
-      </section>
-      <section className="search-panel wrap" id="firsatlar">
-        <div className="search-heading"><div><div className="eyebrow dark">BUGÜNÜN FIRSATLARI</div><h2>Boş saatini değerlendir.</h2></div><span className="live-label"><i /> Yeni fırsatlar burada</span></div>
-        <div className="empty">Fırsat ilanları yayına alındığında burada listelenecek. İlk fırsatları yakında keşfedebilirsin.</div>
-        <p className="demo-note">BOŞSAAT'te rezervasyon talebi oluşturmak ücretsizdir. Ödeme, güvenli ödeme altyapısı devreye alındıktan sonra sunulacaktır.</p>
-      </section>
-      <section className="how wrap" id="nasil-calisir"><span className="section-kicker">ÜÇ ADIMDA</span><h2>Fırsatı bul, talep et, onayını al.</h2><div className="steps">
-        <div><b>01</b><h3>Fırsatları keşfet</h3><p>Yakınındaki işletmelerin indirimli boş randevu saatlerini incele.</p></div>
-        <div><b>02</b><h3>Talebini gönder</h3><p>Sana uygun saat için rezervasyon talebi oluştur.</p></div>
-        <div><b>03</b><h3>Onayını bekle</h3><p>İşletme talebini onayladığında randevun kesinleşsin.</p></div>
-      </div></section>
-      <section className="business-band" id="isletmeler"><div className="wrap business-inner"><div><span className="eyebrow">İŞLETMELER İÇİN</span><h2>Boş saatlerin kazanca dönüşsün.</h2><p>İptal olan veya boş kalan randevularını indirimli fırsat olarak yayınla, yeni müşterilere ulaş.</p></div><Link className="business-button" href="/isletme-kayit">İşletmeni kaydet →</Link></div></section>
-      <footer className="footer"><div className="wrap footer-inner"><Link className="brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT</span></Link><span>© 2026 BOŞSAAT · Boş kalan saatler, senin fırsatın.</span><Link href="/giris">Hesabına giriş yap</Link></div></footer>
-    </main>
-  );
+type Offer={id:string;title:string;category:string;district:string;starts_at:string;original_price:number;offer_price:number;description?:string;businesses?:{name?:string;status?:string}};
+export default function HomePage(){
+ const [offers,setOffers]=useState<Offer[]>([]);
+ const [search,setSearch]=useState("");
+ const [district,setDistrict]=useState("");
+ const [selected,setSelected]=useState<Offer|null>(null);
+ const [customerName,setCustomerName]=useState("");
+ const [phone,setPhone]=useState("");
+ const [message,setMessage]=useState("");
+ const [busy,setBusy]=useState(false);
+ useEffect(()=>{(async()=>{if(!supabase)return;const {data,error}=await supabase.from("offers").select("id,title,category,district,starts_at,original_price,offer_price,description,businesses(name,status)").eq("status","published").eq("businesses.status","approved").gte("starts_at",new Date().toISOString()).order("starts_at",{ascending:true});if(!error)setOffers((data||[]) as Offer[]);})();},[]);
+ const filtered=useMemo(()=>offers.filter(o=>(!search||[o.title,o.category,o.businesses?.name].join(" ").toLocaleLowerCase("tr").includes(search.toLocaleLowerCase("tr")))&&(!district||o.district.toLocaleLowerCase("tr").includes(district.toLocaleLowerCase("tr")))),[offers,search,district]);
+ async function reserve(e:React.FormEvent<HTMLFormElement>){
+  e.preventDefault();if(!supabase||!selected)return;setBusy(true);setMessage("");
+  const {data:{session}}=await supabase.auth.getSession();
+  if(!session){setMessage("Rezervasyon talebi için önce giriş yapmalısın.");setBusy(false);return;}
+  const {error}=await supabase.from("reservations").insert({offer_id:selected.id,customer_id:session.user.id,customer_name:customerName,customer_phone:phone});
+  setMessage(error?"Talep gönderilemedi: "+error.message:"Talebin işletmeye iletildi. Onay durumunu müşteri panelinden takip edebilirsin.");
+  if(!error){setSelected(null);setCustomerName("");setPhone("");}
+  setBusy(false);
+ }
+ return <main>
+  <header className="wrap nav"><Link className="brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT<small>YEREL FIRSAT AĞI</small></span></Link><nav className="nav-links"><a href="#nasil-calisir">Nasıl çalışır?</a><a href="#isletmeler">İşletmeler için</a></nav><Link className="nav-cta" href="/giris">Giriş yap / Üye ol</Link></header>
+  <section className="hero"><div className="hero-grid"/><div className="wrap hero-inner"><div className="eyebrow"><span/> SON DAKİKA RANDEVU FIRSATLARI</div><h1>Boş kalan saatler,<br/><em>senin fırsatın.</em></h1><p className="hero-copy">Yakınındaki kuaför, berber ve güzellik işletmelerinin boş randevu saatlerini avantajlı fiyatlarla keşfet.</p><a className="hero-button" href="#firsatlar">Fırsatları keşfet →</a><div className="hero-foot"><span>✓ İndirimli randevular</span><span>✓ Kolay talep</span><span>✓ İşletmeden onay</span></div></div></section>
+  <section className="search-panel wrap" id="firsatlar"><div className="search-heading"><div><div className="eyebrow dark">BUGÜNÜN FIRSATLARI</div><h2>Boş saatini değerlendir.</h2></div><span className="live-label"><i/> Güncel fırsatlar</span></div>
+   <div className="filters"><div className="search-input"><input aria-label="Hizmet veya işletme ara" placeholder="Hizmet veya işletme ara" value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="İlçe seç" value={district} onChange={e=>setDistrict(e.target.value)}><option value="">Tüm ilçeler</option>{Array.from(new Set(offers.map(o=>o.district))).map(d=><option key={d}>{d}</option>)}</select></div>
+   <div className="chips"><button className="chip active" onClick={()=>{setSearch("");setDistrict("");}}>Tüm fırsatlar</button><button className="chip" onClick={()=>setSearch("Kuaför")}>Kuaför</button><button className="chip" onClick={()=>setSearch("Berber")}>Berber</button><button className="chip" onClick={()=>setSearch("Güzellik")}>Güzellik</button></div>
+   {filtered.length?<div className="offer-grid">{filtered.map(o=><article className="offer-card" key={o.id}><div className="offer-photo" style={{backgroundImage:"linear-gradient(135deg,#182b42,#718399)"}}><span className="offer-tag">SON DAKİKA</span><span className="save-tag">%{Math.round((1-Number(o.offer_price)/Number(o.original_price))*100)} İNDİRİM</span></div><div className="offer-body"><div className="offer-top"><span className="business">{o.businesses?.name||"BOŞSAAT işletmesi"}</span><span className="district">{o.district}</span></div><h3>{o.title}</h3><p>{o.description||o.category}</p><div className="time-row">{new Date(o.starts_at).toLocaleString("tr-TR",{dateStyle:"medium",timeStyle:"short"})}</div><div className="offer-bottom"><strong>{Number(o.offer_price).toLocaleString("tr-TR")} ₺ <del>{Number(o.original_price).toLocaleString("tr-TR")} ₺</del></strong><button className="detail-btn" onClick={()=>{setSelected(o);setMessage("");}}>Talep et →</button></div></div></article>)}</div>:<div className="empty">{offers.length?"Aramana uygun fırsat bulunamadı.":"Henüz yayında fırsat yok. İşletmeler ilk boş saatlerini yayınladığında burada görünecek."}</div>}
+   <p className="demo-note">Rezervasyon talebi gönderdiğinde işletme onayı beklenir. Ödeme, ödeme sağlayıcısı kurulup test edilmeden alınmaz.</p>
+  </section>
+  <section className="how wrap" id="nasil-calisir"><span className="section-kicker">ÜÇ ADIMDA</span><h2>Fırsatı bul, talep et, onayını al.</h2><div className="steps"><div><b>01</b><h3>Fırsatları keşfet</h3><p>Yakınındaki işletmelerin indirimli boş randevu saatlerini incele.</p></div><div><b>02</b><h3>Talebini gönder</h3><p>Sana uygun saat için rezervasyon talebi oluştur.</p></div><div><b>03</b><h3>Onayını bekle</h3><p>İşletme talebini onayladığında randevun kesinleşsin.</p></div></div></section>
+  <section className="business-band" id="isletmeler"><div className="wrap business-inner"><div><span className="eyebrow">İŞLETMELER İÇİN</span><h2>Boş saatlerin kazanca dönüşsün.</h2><p>İptal olan veya boş kalan randevularını indirimli fırsat olarak yayınla, yeni müşterilere ulaş.</p></div><Link className="business-button" href="/isletme-kayit">İşletmeni kaydet →</Link></div></section>
+  <footer className="footer"><div className="wrap footer-inner"><Link className="brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT</span></Link><span>© 2026 BOŞSAAT · Boş kalan saatler, senin fırsatın.</span><Link href="/giris">Hesabına giriş yap</Link></div></footer>
+  {selected&&<div className="modal-backdrop" onClick={()=>setSelected(null)}><section className="modal" onClick={e=>e.stopPropagation()}><button className="modal-close" onClick={()=>setSelected(null)}>×</button><span className="eyebrow dark">REZERVASYON TALEBİ</span><h2>{selected.title}</h2><p>{selected.businesses?.name} · {selected.district}</p><div className="modal-price">{Number(selected.offer_price).toLocaleString("tr-TR")} ₺ <del>{Number(selected.original_price).toLocaleString("tr-TR")} ₺</del></div><p>{new Date(selected.starts_at).toLocaleString("tr-TR",{dateStyle:"full",timeStyle:"short"})}</p><form onSubmit={reserve}><label>Ad soyad<input required value={customerName} onChange={e=>setCustomerName(e.target.value)}/></label><label>Telefon<input required type="tel" value={phone} onChange={e=>setPhone(e.target.value)}/></label><button className="submit-btn" disabled={busy}>{busy?"Gönderiliyor…":"Rezervasyon talebi gönder"}</button></form>{message&&<div className="auth-message">{message} {message.startsWith("Rezervasyon talebi için")&&<Link href="/giris">Giriş yap</Link>}</div>}<p className="notice">Bu aşamada ödeme alınmaz. Randevu işletme tarafından onaylanır.</p></section></div>}
+ </main>;
 }
