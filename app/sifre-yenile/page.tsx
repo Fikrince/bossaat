@@ -25,7 +25,7 @@ export default function SifreYenilePage() {
     let alive = true;
     let confirmed = false;
     let subscription: { unsubscribe: () => void } | null = null;
-    let fallbackTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let fallbackTimer: number | null = null;
 
     const finish = (ok: boolean, errorMessage?: string) => {
       if (!alive || confirmed) return;
