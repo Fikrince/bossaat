@@ -254,3 +254,80 @@ create policy "Authenticated update permitted reservations" on public.reservatio
  or exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=reservations.offer_id and b.owner_id=(select auth.uid()))
  or private.is_admin()
 );
+
+-- Keep the privileged helper outside the exposed Data API schema.
+create schema if not exists private;
+revoke all on schema private from public;
+grant usage on schema private to authenticated;
+create or replace function private.is_admin()
+returns boolean language sql stable security definer set search_path=public
+as $$ select exists(select 1 from public.profiles where id=auth.uid() and role='admin'); $$;
+revoke all on function private.is_admin() from public, anon;
+grant execute on function private.is_admin() to authenticated;
+
+create or replace function public.guard_profile_changes()
+returns trigger language plpgsql security definer set search_path=public,private
+as $$
+begin
+ if auth.uid() is not null and old.role is distinct from new.role and not private.is_admin() then
+  raise exception 'Profil rolünü yalnızca yönetici değiştirebilir';
+ end if;
+ return new;
+end; $$;
+
+create or replace function public.guard_business_changes()
+returns trigger language plpgsql security definer set search_path=public,private
+as $$
+begin
+ if auth.uid() is not null and not private.is_admin() then
+  if tg_op='INSERT' then
+   if new.owner_id is distinct from auth.uid() or new.status <> 'pending' then raise exception 'İşletme kaydı onay beklemelidir'; end if;
+  else
+   if old.owner_id is distinct from auth.uid() then raise exception 'Yetkisiz işletme işlemi'; end if;
+   if new.owner_id is distinct from old.owner_id or new.status is distinct from old.status then raise exception 'İşletme sahibi onay durumunu değiştiremez'; end if;
+  end if;
+ end if;
+ return new;
+end; $$;
+
+create or replace function public.guard_offer_changes()
+returns trigger language plpgsql security definer set search_path=public,private
+as $$
+declare b public.businesses;
+begin
+ select * into b from public.businesses where id=new.business_id;
+ if not found then raise exception 'İşletme bulunamadı'; end if;
+ if new.status='published' and b.status <> 'approved' then raise exception 'Yalnızca onaylı işletmelerin fırsatları yayınlanabilir'; end if;
+ if not private.is_admin() then
+  if b.owner_id is distinct from auth.uid() then raise exception 'Bu işletmeye ait işlem yapamazsınız'; end if;
+  if tg_op='UPDATE' and new.business_id is distinct from old.business_id then raise exception 'Fırsat başka işletmeye taşınamaz'; end if;
+ end if;
+ return new;
+end; $$;
+
+create or replace function public.guard_reservation_changes()
+returns trigger language plpgsql security definer set search_path=public,private
+as $$
+declare owns_offer boolean;
+begin
+ if private.is_admin() then return new; end if;
+ if old.customer_id=auth.uid() then
+  if new.id is distinct from old.id or new.offer_id is distinct from old.offer_id or new.customer_id is distinct from old.customer_id or new.customer_name is distinct from old.customer_name or new.customer_phone is distinct from old.customer_phone or new.created_at is distinct from old.created_at then
+   raise exception 'Rezervasyonun müşteri ve fırsat bilgileri değiştirilemez';
+  end if;
+  if old.status <> 'pending' or new.status <> 'cancelled' then
+   raise exception 'Müşteri yalnızca bekleyen talebini iptal edebilir';
+  end if;
+  return new;
+ end if;
+ select exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=old.offer_id and b.owner_id=auth.uid()) into owns_offer;
+ if not owns_offer then raise exception 'Rezervasyon yalnızca ilgili müşteri, işletme veya yönetici tarafından güncellenabilir'; end if;
+ if new.id is distinct from old.id or new.offer_id is distinct from old.offer_id or new.customer_id is distinct from old.customer_id or new.customer_name is distinct from old.customer_name or new.customer_phone is distinct from old.customer_phone or new.created_at is distinct from old.created_at then
+  raise exception 'Rezervasyonun müşteri ve fırsat bilgileri değiştirilemez';
+ end if;
+ if old.status='pending' and new.status in ('approved','rejected') then return new; end if;
+ if old.status='approved' and new.status='completed' then return new; end if;
+ raise exception 'İşletme yalnızca bekleyen talebi onaylayabilir/reddedebilir veya onaylanmış randevuyu tamamlayabilir';
+end; $$;
+
+drop function if exists public.is_admin();
