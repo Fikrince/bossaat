@@ -10,7 +10,6 @@ export default function SupportPage() {
   const [subject, setSubject] = useState("");
   const [category, setCategory] = useState("support");
   const [message, setMessage] = useState("");
-  const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   useEffect(() => {
@@ -20,8 +19,7 @@ export default function SupportPage() {
     (async () => {
       const { data: { user } } = await client.auth.getUser();
       if (!user) { router.replace("/giris?next=%2Fdestek"); return; }
-      const { data: profile } = await client.from("profiles").select("phone").eq("id", user.id).maybeSingle();
-      if (active) { setPhone(profile?.phone || user.user_metadata?.phone || ""); setReady(true); }
+      if (active) setReady(true);
     })();
     return () => { active = false; };
   }, [router]);
@@ -33,7 +31,7 @@ export default function SupportPage() {
     const { data: { user } } = await client.auth.getUser();
     if (!user) { router.replace("/giris?next=%2Fdestek"); return; }
     const { error } = await client.from("support_messages").insert({
-      user_id: user.id, subject: subject.trim(), category, message: message.trim(), phone: phone.trim()
+      user_id: user.id, subject: subject.trim(), category, message: message.trim()
     });
     setBusy(false);
     if (error) setNotice("Mesaj kaydedilemedi. Lütfen tekrar dene veya e-posta ile ulaş.");
@@ -69,9 +67,6 @@ export default function SupportPage() {
               <option value="support">Destek talebi</option><option value="complaint">Şikâyet</option><option value="suggestion">Öneri</option><option value="other">Diğer</option>
             </select>
           </label>
-          <label style={{display:"grid",gap:7,fontWeight:650}}>Telefon numarası
-            <input required type="tel" minLength={10} maxLength={20} value={phone} onChange={e=>setPhone(e.target.value)} autoComplete="tel" placeholder="05xx xxx xx xx" style={{padding:13,border:"1px solid #d6dee8",borderRadius:10,fontSize:16}} />
-          </label>
           <label style={{display:"grid",gap:7,fontWeight:650}}>Konu
             <input required minLength={3} maxLength={120} value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Kısaca konuyu yaz" style={{padding:13,border:"1px solid #d6dee8",borderRadius:10,fontSize:16}}/>
           </label>
@@ -82,8 +77,8 @@ export default function SupportPage() {
         </form>}
         {notice && <p role="status" style={{background:"#eef5f1",padding:13,borderRadius:10,lineHeight:1.5}}>{notice}</p>}
         <div style={{borderTop:"1px solid #e8edf2",marginTop:24,paddingTop:18,color:"#637287",lineHeight:1.7}}>
-          <b style={{color:"#172438"}}>E-posta ile ulaş:</b> <a href="mailto:Ferhatcaga04@gmail.com" style={{color:"#1b5e91"}}>Ferhatcaga04@gmail.com</a><br/><b style={{color:"#172438"}}>WhatsApp:</b> <a href="https://wa.me/905413805904" target="_blank" rel="noreferrer" style={{color:"#1b5e91"}}>0541 380 59 04 üzerinden mesaj gönder</a>
-          <p style={{fontSize:13,marginBottom:0}}>Mesaj formunu kullanmak için hesabına giriş yapmalısın. Dilersen doğrudan e-posta veya WhatsApp üzerinden de yazabilirsin.</p>
+          <b style={{color:"#172438"}}>E-posta ile ulaş:</b> <a href="mailto:Ferhatcaga04@gmail.com" style={{color:"#1b5e91"}}>Ferhatcaga04@gmail.com</a>
+          <p style={{fontSize:13,marginBottom:0}}>Mesaj formunu kullanmak için hesabına giriş yapmalısın. Dilersen doğrudan e-posta üzerinden de yazabilirsin.</p>
         </div>
       </section>
     </div>
