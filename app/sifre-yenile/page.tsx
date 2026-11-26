@@ -41,6 +41,20 @@ export default function SifreYenilePage() {
     (async () => {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
+      const tokenHash = params.get("token_hash");
+      const recoveryType = params.get("type");
+
+      if (tokenHash && recoveryType === "recovery") {
+        const { data, error } = await client.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+        if (error || !data.session) {
+          finish(false, "E-posta bağlantısı doğrulanamadı veya süresi dolmuş. Giriş sayfasından yeniden şifre bağlantısı iste.");
+          return;
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+        finish(true);
+        return;
+      }
+
       if (code) {
         const { data, error } = await client.auth.exchangeCodeForSession(code);
         if (error || !data.session) {
@@ -52,7 +66,15 @@ export default function SifreYenilePage() {
         return;
       }
 
-      // Supports older Supabase recovery links that return tokens in the URL hash.
+      // Show explicit Supabase redirect errors instead of leaving the user on a blank-looking page.
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const redirectError = hashParams.get("error_description") || hashParams.get("error");
+      if (redirectError) {
+        finish(false, "Şifre bağlantısı açılamadı: " + decodeURIComponent(redirectError.replace(/\+/g, " ")));
+        return;
+      }
+
+      // Supports Supabase recovery links that return tokens in the URL hash.
       const { data, error } = await client.auth.getSession();
       if (error) {
         finish(false, "Şifre yenileme oturumu açılamadı. E-postadaki bağlantı süresi dolmuş olabilir.");
