@@ -19,6 +19,9 @@ export default function BusinessPage(){
   if(!supabase){setMessage("Veritabanı bağlantısı henüz yapılandırılmadı.");return;}
   const {data:{session}}=await supabase.auth.getSession();
   if(!session){router.replace("/giris");return;}
+  const {data:profile}=await supabase.from("profiles").select("role").eq("id",session.user.id).maybeSingle();
+  if(profile?.role==="admin"){router.replace("/admin");return;}
+  if(profile?.role!=="business"){router.replace("/panel");return;}
   const {data:bs,error}=await supabase.from("businesses").select("id,name,status").eq("owner_id",session.user.id);
   if(error){setMessage("İşletmeler yüklenemedi: "+error.message);return;}
   const list=(bs||[]) as Business[];setBusinesses(list);
