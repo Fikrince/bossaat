@@ -24,12 +24,15 @@ export default function GirisPage() {
     setBusy(true); setMessage("");
     if (mode === "signup") {
       const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: { data: { full_name: fullName, first_name: firstName.trim(), last_name: lastName.trim(), phone: phone.trim(), role: "customer" } },
       });
-      setMessage(error ? "Kayıt tamamlanamadı: " + error.message : "Hesabın oluşturuldu. E-posta doğrulaması istenirse gelen kutunu ve Spam klasörünü kontrol et.");
+      if (error) setMessage("Kayıt tamamlanamadı: " + error.message);
+      else if (data.user && data.user.identities?.length === 0) { setMode("login"); setMessage("Bu e-posta adresiyle bir hesap zaten var. Giriş yapmayı dene veya “Şifremi unuttum” bağlantısını kullan."); }
+      else if (data.session) router.push("/panel");
+      else setMessage("Hesabın oluşturuldu. E-posta doğrulaması gerekiyorsa gelen kutunu ve Spam klasörünü kontrol et. E-posta ulaşmıyorsa platformun e-posta gönderim servisi yapılandırılmalıdır.");
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) setMessage("Giriş yapılamadı: " + error.message);
