@@ -75,7 +75,7 @@ returns trigger language plpgsql security definer set search_path=public
 as $$
 begin
  insert into public.profiles(id,full_name,phone,role)
- values(new.id,coalesce(new.raw_user_meta_data->>'full_name',''),coalesce(new.raw_user_meta_data->>'phone',''),'customer');
+ values(new.id,coalesce(new.raw_user_meta_data->>'full_name',''),coalesce(new.raw_user_meta_data->>'phone',''),case when new.raw_user_meta_data->>'role'='business' then 'business' else 'customer' end);
  return new;
 end; $$;
 drop trigger if exists on_auth_user_created on auth.users;
@@ -88,5 +88,20 @@ create trigger on_auth_user_created after insert on auth.users for each row exec
 -- Admin can review and moderate businesses. Role is read from the signed-in user's own profile.
 drop policy if exists "Admins manage businesses" on public.businesses;
 create policy "Admins manage businesses" on public.businesses for all
+using (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'))
+with check (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'));
+
+-- Admin access for moderation and support.
+drop policy if exists "Admins read profiles" on public.profiles;
+create policy "Admins read profiles" on public.profiles for select
+using (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'));
+
+drop policy if exists "Admins manage offers" on public.offers;
+create policy "Admins manage offers" on public.offers for all
+using (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'))
+with check (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'));
+
+drop policy if exists "Admins manage reservations" on public.reservations;
+create policy "Admins manage reservations" on public.reservations for all
 using (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'))
 with check (exists(select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'));
