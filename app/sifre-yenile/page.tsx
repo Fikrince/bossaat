@@ -19,6 +19,7 @@ export default function SifreYenilePage() {
       setChecking(false);
       return;
     }
+    const client = supabase;
 
     let alive = true;
     let confirmed = false;
@@ -41,7 +42,7 @@ export default function SifreYenilePage() {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
       if (code) {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        const { data, error } = await client.auth.exchangeCodeForSession(code);
         if (error || !data.session) {
           finish(false, "E-posta bağlantısı doğrulanamadı veya süresi dolmuş. Giriş sayfasından yeniden şifre bağlantısı iste.");
           return;
@@ -52,7 +53,7 @@ export default function SifreYenilePage() {
       }
 
       // Supports older Supabase recovery links that return tokens in the URL hash.
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await client.auth.getSession();
       if (error) {
         finish(false, "Şifre yenileme oturumu açılamadı. E-postadaki bağlantı süresi dolmuş olabilir.");
         return;
@@ -62,14 +63,14 @@ export default function SifreYenilePage() {
         return;
       }
 
-      const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      const { data: listener } = client.auth.onAuthStateChange((event, session) => {
         if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) finish(true);
       });
       subscription = listener.subscription;
       // Allow the client to process legacy URL-fragment tokens before showing an error.
       fallbackTimer = window.setTimeout(async () => {
         if (confirmed || !alive) return;
-        const { data: latest } = await supabase.auth.getSession();
+        const { data: latest } = await client.auth.getSession();
         finish(Boolean(latest.session));
       }, 900);
     })();
