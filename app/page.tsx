@@ -16,12 +16,12 @@ export default function HomePage(){
  const [busy,setBusy]=useState(false);
  const [hasSession,setHasSession]=useState(false);
  useEffect(()=>{if(!supabase)return;let active=true;(async()=>{const {data:{session}}=await supabase.auth.getSession();if(active)setHasSession(Boolean(session));})();const {data:listener}=supabase.auth.onAuthStateChange((_event,session)=>{setHasSession(Boolean(session));});return()=>{active=false;listener.subscription.unsubscribe();};},[]);
- useEffect(()=>{(async()=>{if(!supabase)return;const {data,error}=await supabase.from("offers").select("id,title,category,district,starts_at,original_price,offer_price,description,image_url,businesses!inner(name,status,image_url)").eq("status","published").eq("businesses.status","approved").gte("starts_at",new Date().toISOString()).order("starts_at",{ascending:true});if(error)setOffersError("Fırsatlar şu anda yüklenemedi. Lütfen biraz sonra tekrar dene.");else setOffers((data||[]) as Offer[]);})();},[]);
+ useEffect(()=>{(async()=>{if(!supabase)return;const {data,error}=await supabase.from("offers").select("id,title,category,district,starts_at,original_price,offer_price,description,image_url,businesses!inner(name,status,image_url)").eq("status","published").eq("businesses.status","approved").gte("starts_at",new Date().toISOString()).order("starts_at",{ascending:true});if(error)setOffersError("Fırsatlar şu anda yüklenemedi. Lütfen biraz sonra tekrar dene.");else {setOffers((data||[]) as Offer[]);const offerId=new URLSearchParams(window.location.search).get("offer");if(offerId){const target=(data||[]).find((item:any)=>item.id===offerId);if(target)setSelected(target as Offer);}}})();},[]);
  const filtered=useMemo(()=>offers.filter(o=>(!search||[o.title,o.category,o.businesses?.name].join(" ").toLocaleLowerCase("tr").includes(search.toLocaleLowerCase("tr")))&&(!district||o.district.toLocaleLowerCase("tr").includes(district.toLocaleLowerCase("tr")))),[offers,search,district]);
  async function reserve(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault();if(!supabase||!selected)return;setBusy(true);setMessage("");
   const {data:{user},error:authError}=await supabase.auth.getUser();
-  if(authError||!user){setMessage("Rezervasyon talebi için önce giriş yapmalısın.");setBusy(false);return;}
+  if(authError||!user){const next="/?offer="+encodeURIComponent(selected.id)+"#firsatlar";window.location.assign("/giris?next="+encodeURIComponent(next));setBusy(false);return;}
   const {error}=await supabase.from("reservations").insert({offer_id:selected.id,customer_id:user.id,customer_name:customerName.trim(),customer_phone:phone.trim()});
   setMessage(error?(error.code==="23505"?"Bu fırsat için zaten etkin bir rezervasyon talebin bulunuyor.": "Talep gönderilemedi: "+error.message):"Talebin işletmeye iletildi. Onay durumunu müşteri panelinden takip edebilirsin.");
   if(!error){setSelected(null);setCustomerName("");setPhone("");}
