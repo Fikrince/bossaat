@@ -73,7 +73,7 @@ create or replace function public.guard_profile_changes()
 returns trigger language plpgsql security definer set search_path=public
 as $$
 begin
- if old.role is distinct from new.role and not public.is_admin() then
+ if auth.uid() is not null and old.role is distinct from new.role and not public.is_admin() then
   raise exception 'Profil rolünü yalnızca yönetici değiştirebilir';
  end if;
  return new;
@@ -178,6 +178,9 @@ create policy "Owners update reservations for own offers" on public.reservations
 using(exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=offer_id and b.owner_id=auth.uid()))
 with check(exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=offer_id and b.owner_id=auth.uid()));
 create policy "Admins manage reservations" on public.reservations for all using(public.is_admin()) with check(public.is_admin());
+
+-- İlk yönetici hesabını oluşturduktan sonra SQL Editor'da e-posta adresinizi değiştirerek çalıştırın:
+-- update public.profiles p set role='admin' from auth.users u where p.id=u.id and lower(u.email)=lower('SENIN_EPOSTAN');
 
 -- Grant authenticated access only through RLS-protected policies.
 grant select, update on public.profiles to authenticated;
