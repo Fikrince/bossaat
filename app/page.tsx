@@ -20,10 +20,10 @@ export default function HomePage(){
  const filtered=useMemo(()=>offers.filter(o=>(!search||[o.title,o.category,o.businesses?.name].join(" ").toLocaleLowerCase("tr").includes(search.toLocaleLowerCase("tr")))&&(!district||o.district.toLocaleLowerCase("tr").includes(district.toLocaleLowerCase("tr")))),[offers,search,district]);
  async function reserve(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault();if(!supabase||!selected)return;setBusy(true);setMessage("");
-  const {data:{session}}=await supabase.auth.getSession();
-  if(!session){setMessage("Rezervasyon talebi için önce giriş yapmalısın.");setBusy(false);return;}
-  const {error}=await supabase.from("reservations").insert({offer_id:selected.id,customer_id:session.user.id,customer_name:customerName,customer_phone:phone});
-  setMessage(error?"Talep gönderilemedi: "+error.message:"Talebin işletmeye iletildi. Onay durumunu müşteri panelinden takip edebilirsin.");
+  const {data:{user},error:authError}=await supabase.auth.getUser();
+  if(authError||!user){setMessage("Rezervasyon talebi için önce giriş yapmalısın.");setBusy(false);return;}
+  const {error}=await supabase.from("reservations").insert({offer_id:selected.id,customer_id:user.id,customer_name:customerName.trim(),customer_phone:phone.trim()});
+  setMessage(error?(error.code==="23505"?"Bu fırsat için zaten etkin bir rezervasyon talebin bulunuyor.": "Talep gönderilemedi: "+error.message):"Talebin işletmeye iletildi. Onay durumunu müşteri panelinden takip edebilirsin.");
   if(!error){setSelected(null);setCustomerName("");setPhone("");}
   setBusy(false);
  }
