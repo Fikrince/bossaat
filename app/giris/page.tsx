@@ -27,7 +27,11 @@ export default function GirisPage() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setMessage(error.message);
-      else router.push("/panel");
+      else {
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user?.id || "").maybeSingle();
+        router.push(profile?.role === "business" ? "/isletme" : profile?.role === "admin" ? "/admin" : "/panel");
+      }
     }
     setBusy(false);
   }
