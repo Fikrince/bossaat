@@ -16,9 +16,9 @@ export default function AdminPage(){
  const [loading,setLoading]=useState(true);
  async function load(){
   if(!supabase){setMessage("Veritabanı bağlantısı yapılandırılmadı.");setLoading(false);return;}
-  const {data:{session}}=await supabase.auth.getSession();
-  if(!session){router.replace("/giris");return;}
-  const {data:profile}=await supabase.from("profiles").select("role").eq("id",session.user.id).maybeSingle();
+  const {data:{user},error:authError}=await supabase.auth.getUser();
+  if(authError||!user){router.replace("/giris?next=%2Fadmin");return;}
+  const {data:profile}=await supabase.from("profiles").select("role").eq("id",user.id).maybeSingle();
   if(profile?.role!=="admin"){setMessage("Bu sayfa yalnızca yönetici hesabına açıktır.");setLoading(false);return;}
   const [b,o,r]=await Promise.all([
    supabase.from("businesses").select("id,name,category,district,phone,status").order("created_at",{ascending:false}),
