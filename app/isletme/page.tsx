@@ -57,18 +57,30 @@ export default function BusinessPage(){
   if(!file||!supabase||!businessId)return;
   if(!["image/jpeg","image/png","image/webp"].includes(file.type)){setMessage("Lütfen JPG, PNG veya WEBP formatında fotoğraf seç.");return;}
   if(file.size>5*1024*1024){setMessage("Fotoğraf en fazla 5 MB olabilir.");return;}
-  const {data:{user}}=await supabase.auth.getUser();
-  if(!user){setMessage("Fotoğraf yüklemek için tekrar giriş yap.");return;}
   setPhotoBusy(true);setMessage("");
-  const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
-  const path=user.id+"/"+businessId+"/"+crypto.randomUUID()+"."+ext;
-  const {error:uploadError}=await supabase.storage.from("business-photos").upload(path,file,{contentType:file.type,upsert:false});
-  if(uploadError){setMessage("Fotoğraf yüklenemedi: "+uploadError.message);setPhotoBusy(false);return;}
-  const {data:{publicUrl}}=supabase.storage.from("business-photos").getPublicUrl(path);
-  const {error:updateError}=await supabase.from("businesses").update({image_url:publicUrl}).eq("id",businessId);
-  if(updateError)setMessage("Fotoğraf yüklendi ancak işletme profiline kaydedilemedi: "+updateError.message);
-  else{setBusinesses(prev=>prev.map(b=>b.id===businessId?{...b,image_url:publicUrl}:b));setMessage("İşletme fotoğrafın başarıyla güncellendi.");}
-  setPhotoBusy(false);
+  let uploadedPath="";
+  try{
+   const {data:{user},error:authError}=await supabase.auth.getUser();
+   if(authError||!user)throw new Error("Fotoğraf yüklemek için tekrar giriş yap.");
+   const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+   uploadedPath=user.id+"/"+businessId+"/"+crypto.randomUUID()+"."+ext;
+   const {error:uploadError}=await supabase.storage.from("business-photos").upload(uploadedPath,file,{contentType:file.type,upsert:false});
+   if(uploadError)throw uploadError;
+   const {data:{publicUrl}}=supabase.storage.from("business-photos").getPublicUrl(uploadedPath);
+   const {error:updateError}=await supabase.from("businesses").update({image_url:publicUrl}).eq("id",businessId);
+   if(updateError){
+    await supabase.storage.from("business-photos").remove([uploadedPath]);
+    uploadedPath="";
+    throw updateError;
+   }
+   setBusinesses(prev=>prev.map(b=>b.id===businessId?{...b,image_url:publicUrl}:b));
+   setMessage("İşletme fotoğrafın başarıyla güncellendi.");
+  }catch(error){
+   const detail=error instanceof Error?error.message:"Bilinmeyen bir bağlantı hatası";
+   setMessage("Fotoğraf yüklenemedi: "+detail);
+  }finally{
+   setPhotoBusy(false);
+  }
  }
  async function saveOffer(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault();if(!supabase||!businessId)return;
