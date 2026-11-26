@@ -16,7 +16,8 @@ export default function BusinessPage(){
  const [editingId,setEditingId]=useState("");
  const [title,setTitle]=useState(""); const [category,setCategory]=useState("Kuaför"); const [district,setDistrict]=useState(""); const [description,setDescription]=useState(""); const [startsAt,setStartsAt]=useState(""); const [original,setOriginal]=useState(""); const [price,setPrice]=useState("");
  const [message,setMessage]=useState("Yükleniyor…");
- const [busy,setBusy]=useState(false);\n const [photoBusy,setPhotoBusy]=useState(false);
+ const [busy,setBusy]=useState(false);
+ const [photoBusy,setPhotoBusy]=useState(false);
  async function load(){
   if(!supabase){setMessage("Veritabanı bağlantısı henüz yapılandırılmadı.");return;}
   const {data:{user},error:authError}=await supabase.auth.getUser();
