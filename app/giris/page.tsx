@@ -75,7 +75,7 @@ export default function GirisPage() {
     setBusy(true);
     setMessage("");
     try {
-      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin).replace(/\\/+$/, "");
+      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin).replace(/\/+$/, "");
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${siteUrl}/sifre-yenile`,
       });
