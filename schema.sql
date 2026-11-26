@@ -1,4 +1,4 @@
--- BOŞSAAT MVP veritabani semasi. Supabase SQL Editor'da calistirin.
+-- BOŞSAAT production MVP schema. Run once in Supabase SQL Editor.
 create extension if not exists pgcrypto;
 
 create table if not exists public.profiles (
@@ -34,72 +34,153 @@ create table if not exists public.reservations (
  created_at timestamptz not null default now()
 );
 
+create index if not exists businesses_owner_id_idx on public.businesses(owner_id);
+create index if not exists offers_business_id_idx on public.offers(business_id);
+create index if not exists offers_status_starts_at_idx on public.offers(status,starts_at);
+create index if not exists reservations_customer_id_idx on public.reservations(customer_id);
+create index if not exists reservations_offer_id_idx on public.reservations(offer_id);
+
 alter table public.profiles enable row level security;
 alter table public.businesses enable row level security;
 alter table public.offers enable row level security;
 alter table public.reservations enable row level security;
 
-drop policy if exists "Public can read approved businesses" on public.businesses;
-create policy "Public can read approved businesses" on public.businesses for select using(status='approved');
-drop policy if exists "Public can read published offers" on public.offers;
-create policy "Public can read published offers" on public.offers for select using(status='published');
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path=public
+as $$ select exists(select 1 from public.profiles where id=auth.uid() and role='admin'); $$;
 
-drop policy if exists "Users read own profile" on public.profiles;
-create policy "Users read own profile" on public.profiles for select using(auth.uid()=id);
-drop policy if exists "Users insert own profile" on public.profiles;
-create policy "Users insert own profile" on public.profiles for insert with check(auth.uid()=id);
-drop policy if exists "Users update own profile" on public.profiles;
-create policy "Users update own profile" on public.profiles for update using(auth.uid()=id) with check(auth.uid()=id);
-
-drop policy if exists "Owners read own businesses" on public.businesses;
-create policy "Owners read own businesses" on public.businesses for select using(auth.uid()=owner_id);
-drop policy if exists "Owners create business" on public.businesses;
-create policy "Owners create business" on public.businesses for insert with check(auth.uid()=owner_id);
-drop policy if exists "Owners update own businesses" on public.businesses;
-create policy "Owners update own businesses" on public.businesses for update using(auth.uid()=owner_id) with check(auth.uid()=owner_id);
-
-drop policy if exists "Owners manage own offers" on public.offers;
-create policy "Owners manage own offers" on public.offers for all using(exists(select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid())) with check(exists(select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid()));
-
-drop policy if exists "Customers create own reservation" on public.reservations;
-create policy "Customers create own reservation" on public.reservations for insert to authenticated with check(customer_id=auth.uid());
-drop policy if exists "Customers read own reservations" on public.reservations;
-create policy "Customers read own reservations" on public.reservations for select using(customer_id=auth.uid());
-drop policy if exists "Owners read reservations for own offers" on public.reservations;
-create policy "Owners read reservations for own offers" on public.reservations for select using(exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=offer_id and b.owner_id=auth.uid()));
-drop policy if exists "Owners update reservations for own offers" on public.reservations;
-create policy "Owners update reservations for own offers" on public.reservations for update using(exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=offer_id and b.owner_id=auth.uid()));
-
+-- Auth signup creates the profile and, for business accounts, the pending business record.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path=public
 as $$
+declare user_role text;
 begin
+ user_role := case when new.raw_user_meta_data->>'role'='business' then 'business' else 'customer' end;
  insert into public.profiles(id,full_name,phone,role)
- values(new.id,coalesce(new.raw_user_meta_data->>'full_name',''),coalesce(new.raw_user_meta_data->>'phone',''),case when new.raw_user_meta_data->>'role'='business' then 'business' else 'customer' end);
+ values(new.id,coalesce(new.raw_user_meta_data->>'full_name',''),coalesce(new.raw_user_meta_data->>'phone',''),user_role)
+ on conflict (id) do nothing;
+ if user_role='business' and nullif(trim(new.raw_user_meta_data->>'business_name'),'') is not null then
+  insert into public.businesses(owner_id,name,category,district,phone,status)
+  values(new.id,trim(new.raw_user_meta_data->>'business_name'),coalesce(nullif(new.raw_user_meta_data->>'category',''),'Diğer'),coalesce(nullif(new.raw_user_meta_data->>'district',''),'Belirtilmedi'),coalesce(new.raw_user_meta_data->>'phone',''),'pending');
+ end if;
  return new;
 end; $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();
 
--- Yönetici ataması: kendi kullanıcı UUID'nizi doğruladıktan sonra SQL Editor'da elle çalıştırın.
--- update public.profiles set role='admin' where id='AUTH_USER_UUID';
-
-
--- Admin helper runs with the function owner's privileges to avoid RLS recursion.
-create or replace function public.is_admin()
-returns boolean language sql stable security definer set search_path=public
+-- Prevent privilege escalation and owner-side approval/status tampering.
+create or replace function public.guard_profile_changes()
+returns trigger language plpgsql security definer set search_path=public
 as $$
-  select exists(select 1 from public.profiles where id=auth.uid() and role='admin');
-$$;
+begin
+ if old.role is distinct from new.role and not public.is_admin() then
+  raise exception 'Profil rolünü yalnızca yönetici değiştirebilir';
+ end if;
+ return new;
+end; $$;
+drop trigger if exists guard_profile_changes on public.profiles;
+create trigger guard_profile_changes before update on public.profiles for each row execute function public.guard_profile_changes();
 
+create or replace function public.guard_business_changes()
+returns trigger language plpgsql security definer set search_path=public
+as $$
+begin
+ if not public.is_admin() then
+  if tg_op='INSERT' then
+   if new.owner_id is distinct from auth.uid() or new.status <> 'pending' then raise exception 'İşletme kaydı onay beklemelidir'; end if;
+  else
+   if old.owner_id is distinct from auth.uid() then raise exception 'Yetkisiz işletme işlemi'; end if;
+   if new.owner_id is distinct from old.owner_id or new.status is distinct from old.status then raise exception 'İşletme sahibi onay durumunu değiştiremez'; end if;
+  end if;
+ end if;
+ return new;
+end; $$;
+drop trigger if exists guard_business_changes on public.businesses;
+create trigger guard_business_changes before insert or update on public.businesses for each row execute function public.guard_business_changes();
+
+create or replace function public.guard_offer_changes()
+returns trigger language plpgsql security definer set search_path=public
+as $$
+declare b public.businesses;
+begin
+ select * into b from public.businesses where id=new.business_id;
+ if not found then raise exception 'İşletme bulunamadı'; end if;
+ if not public.is_admin() then
+  if b.owner_id is distinct from auth.uid() then raise exception 'Bu işletmeye ait işlem yapamazsınız'; end if;
+  if new.status='published' and b.status <> 'approved' then raise exception 'Yalnızca onaylı işletmeler fırsat yayınlayabilir'; end if;
+  if tg_op='UPDATE' and new.business_id is distinct from old.business_id then raise exception 'Fırsat başka işletmeye taşınamaz'; end if;
+ end if;
+ return new;
+end; $$;
+drop trigger if exists guard_offer_changes on public.offers;
+create trigger guard_offer_changes before insert or update on public.offers for each row execute function public.guard_offer_changes();
+
+create or replace function public.guard_reservation_changes()
+returns trigger language plpgsql security definer set search_path=public
+as $$
+declare owns_offer boolean;
+begin
+ if public.is_admin() then return new; end if;
+ select exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=old.offer_id and b.owner_id=auth.uid()) into owns_offer;
+ if not owns_offer then raise exception 'Rezervasyon yalnızca ilgili işletme tarafından güncellenebilir'; end if;
+ if new.id is distinct from old.id or new.offer_id is distinct from old.offer_id or new.customer_id is distinct from old.customer_id or new.customer_name is distinct from old.customer_name or new.customer_phone is distinct from old.customer_phone or new.created_at is distinct from old.created_at then
+  raise exception 'Rezervasyonun müşteri ve fırsat bilgileri değiştirilemez';
+ end if;
+ return new;
+end; $$;
+drop trigger if exists guard_reservation_changes on public.reservations;
+create trigger guard_reservation_changes before update on public.reservations for each row execute function public.guard_reservation_changes();
+
+-- Profiles: users can read/update their own profile, but cannot change role.
+drop policy if exists "Users read own profile" on public.profiles;
+drop policy if exists "Users insert own profile" on public.profiles;
+drop policy if exists "Users update own profile" on public.profiles;
+drop policy if exists "Admins read profiles" on public.profiles;
+drop policy if exists "Admins update profiles" on public.profiles;
+create policy "Users read own profile" on public.profiles for select using(auth.uid()=id);
+create policy "Users update own profile" on public.profiles for update using(auth.uid()=id or public.is_admin()) with check(auth.uid()=id or public.is_admin());
+create policy "Admins read profiles" on public.profiles for select using(public.is_admin());
+
+-- Businesses: only approved records are public; owners see their own pending records.
+drop policy if exists "Public can read approved businesses" on public.businesses;
+drop policy if exists "Owners read own businesses" on public.businesses;
+drop policy if exists "Owners create business" on public.businesses;
+drop policy if exists "Owners update own businesses" on public.businesses;
 drop policy if exists "Admins manage businesses" on public.businesses;
-create policy "Admins manage businesses" on public.businesses for all
-using (public.is_admin()) with check (public.is_admin());
+create policy "Public can read approved businesses" on public.businesses for select using(status='approved');
+create policy "Owners read own businesses" on public.businesses for select to authenticated using(auth.uid()=owner_id);
+create policy "Owners create business" on public.businesses for insert to authenticated with check(auth.uid()=owner_id and status='pending');
+create policy "Owners update own businesses" on public.businesses for update to authenticated using(auth.uid()=owner_id) with check(auth.uid()=owner_id);
+create policy "Admins manage businesses" on public.businesses for all using(public.is_admin()) with check(public.is_admin());
 
+-- Offers: published offers are public; owners manage offers belonging to their businesses.
+drop policy if exists "Public can read published offers" on public.offers;
+drop policy if exists "Owners manage own offers" on public.offers;
 drop policy if exists "Admins manage offers" on public.offers;
-create policy "Admins manage offers" on public.offers for all
-using (public.is_admin()) with check (public.is_admin());
+create policy "Public can read published offers" on public.offers for select using(status='published');
+create policy "Owners manage own offers" on public.offers for all to authenticated
+using(exists(select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid()))
+with check(exists(select 1 from public.businesses b where b.id=business_id and b.owner_id=auth.uid()));
+create policy "Admins manage offers" on public.offers for all using(public.is_admin()) with check(public.is_admin());
 
+-- Reservations: customers create/read their own; business owners read/update requests for their offers.
+drop policy if exists "Customers create own reservation" on public.reservations;
+drop policy if exists "Customers read own reservations" on public.reservations;
+drop policy if exists "Owners read reservations for own offers" on public.reservations;
+drop policy if exists "Owners update reservations for own offers" on public.reservations;
 drop policy if exists "Admins manage reservations" on public.reservations;
-create policy "Admins manage reservations" on public.reservations for all
-using (public.is_admin()) with check (public.is_admin());
+create policy "Customers create own reservation" on public.reservations for insert to authenticated
+with check(customer_id=auth.uid() and exists(select 1 from public.offers o where o.id=offer_id and o.status='published' and o.starts_at>now()));
+create policy "Customers read own reservations" on public.reservations for select to authenticated using(customer_id=auth.uid());
+create policy "Owners read reservations for own offers" on public.reservations for select to authenticated
+using(exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=offer_id and b.owner_id=auth.uid()));
+create policy "Owners update reservations for own offers" on public.reservations for update to authenticated
+using(exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=offer_id and b.owner_id=auth.uid()))
+with check(exists(select 1 from public.offers o join public.businesses b on b.id=o.business_id where o.id=offer_id and b.owner_id=auth.uid()));
+create policy "Admins manage reservations" on public.reservations for all using(public.is_admin()) with check(public.is_admin());
+
+-- Grant authenticated access only through RLS-protected policies.
+grant select, update on public.profiles to authenticated;
+grant select, insert, update on public.businesses to authenticated;
+grant select, insert, update, delete on public.offers to authenticated;
+grant select, insert, update on public.reservations to authenticated;
