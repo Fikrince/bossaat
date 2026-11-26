@@ -75,8 +75,9 @@ export default function GirisPage() {
     setBusy(true);
     setMessage("");
     try {
+      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin).replace(/\\/+$/, "");
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/sifre-yenile`,
+        redirectTo: `${siteUrl}/sifre-yenile`,
       });
       setMessage(error
         ? "Şifre yenileme isteği gönderilemedi: " + error.message
