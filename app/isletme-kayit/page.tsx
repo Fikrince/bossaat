@@ -11,9 +11,14 @@ export default function BusinessRegisterPage(){
   e.preventDefault(); if(!supabase){setMessage("İşletme kayıt sistemi henüz yapılandırılmadı.");return;}
   setBusy(true);setMessage("");
   const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,phone,role:"business",business_name:name,category,district}}});
-  if(error){setMessage(error.message);setBusy(false);return;}
-  if(data.session) router.push("/isletme");
-  else setMessage("İşletme hesabın oluşturuldu. E-posta doğrulamasını tamamla. İşletme kaydın otomatik olarak onay bekleyenler listesine eklendi; doğrulama sonrası giriş yapabilirsin.");
+  if(error){
+   const duplicate=/already registered|already been registered|user already exists/i.test(error.message);
+   setMessage(duplicate?"Bu e-posta adresiyle zaten bir hesap var. İşletme hesabına giriş yapmayı dene veya şifreni yenile.":"İşletme kaydı tamamlanamadı: "+error.message);
+   setBusy(false);return;
+  }
+  if(data.user && data.user.identities?.length===0){setMessage("Bu e-posta adresiyle zaten bir hesap var. Giriş sayfasından devam et veya şifreni yenile.");setBusy(false);return;}
+  if(data.session){router.replace("/isletme");router.refresh();}
+  else setMessage("İşletme hesabın oluşturuldu. E-posta doğrulaması gerekiyorsa gelen kutunu ve Spam klasörünü kontrol et. Doğrulama sonrası giriş yapabilirsin.");
   setBusy(false);
  }
  return <main className="auth-shell"><section className="auth-card wide"><Link className="brand auth-brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT<small>İŞLETME KAYDI</small></span></Link><span className="eyebrow dark">İŞLETMENİ BOŞSAAT'E EKLE</span><h1>Boş saatlerin kazanca dönüşsün.</h1><p>İşletme hesabını oluştur. Kaydın yönetim onayından sonra yayına alınır.</p><form onSubmit={submit}>
@@ -24,5 +29,5 @@ export default function BusinessRegisterPage(){
  <label>E-posta<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} /></label>
  <label>Şifre<input required minLength={8} type="password" value={password} onChange={e=>setPassword(e.target.value)} /></label>
  <button className="submit-btn" disabled={busy}>{busy?"Kaydediliyor…":"İşletme hesabı oluştur"}</button>
- </form>{message&&<div className="auth-message">{message}</div>}<Link className="back-link" href="/">← Ana sayfaya dön</Link></section></main>;
+ </form>{message&&<div className="auth-message">{message}</div>}<Link className="back-link" href="/giris">Zaten hesabın var mı? Giriş yap</Link><Link className="back-link" href="/">← Ana sayfaya dön</Link></section></main>;
 }
