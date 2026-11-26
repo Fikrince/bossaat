@@ -1,0 +1,26 @@
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase, supabaseReady } from "@/lib/supabase";
+
+type Reservation = { id:string; status:string; created_at:string; offers?:{title?:string; businesses?:{name?:string}} };
+export default function PanelPage() {
+  const router=useRouter();
+  const [rows,setRows]=useState<Reservation[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [message,setMessage]=useState("");
+  useEffect(()=>{
+    let active=true;
+    (async()=>{
+      if(!supabase){setLoading(false);return;}
+      const {data:{session}}=await supabase.auth.getSession();
+      if(!session){router.replace("/giris");return;}
+      const {data,error}=await supabase.from("reservations").select("id,status,created_at,offers(title,businesses(name))").eq("customer_id",session.user.id).order("created_at",{ascending:false});
+      if(active){setRows((data||[]) as Reservation[]);if(error)setMessage("Rezervasyonlar yüklenemedi.");setLoading(false);}
+    })();
+    return()=>{active=false;};
+  },[router]);
+  async function logout(){await supabase?.auth.signOut();router.push("/");}
+  return <main className="dashboard"><header className="dash-nav"><Link className="brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT<small>YEREL FIRSAT AĞI</small></span></Link><button className="quiet-btn" onClick={logout}>Çıkış yap</button></header><section className="dash-content"><span className="eyebrow dark">MÜŞTERİ PANELİ</span><h1>Rezervasyon panelin.</h1><p>Rezervasyon taleplerini buradan takip edebilirsin.</p><div className="dash-actions"><Link className="dash-tile" href="/#firsatlar"><b>Fırsatları keşfet</b><span>Yakınındaki boş saatleri görüntüle →</span></Link><Link className="dash-tile" href="/isletme-kayit"><b>İşletmem var</b><span>İşletmeni BOŞSAAT'e ekle →</span></Link></div><h2>Rezervasyonlarım</h2>{loading?<p>Yükleniyor…</p>:!supabaseReady?<p>Veritabanı bağlantısı kurulmadı.</p>:rows.length===0?<div className="empty">Henüz rezervasyon talebin yok.</div>:<div className="table-wrap"><table><thead><tr><th>Fırsat</th><th>İşletme</th><th>Durum</th><th>Tarih</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.offers?.title||"Fırsat"}</td><td>{r.offers?.businesses?.name||"İşletme"}</td><td>{r.status==="pending"?"Onay bekliyor":r.status==="approved"?"Onaylandı":r.status==="rejected"?"Reddedildi":r.status}</td><td>{new Date(r.created_at).toLocaleDateString("tr-TR")}</td></tr>)}</tbody></table></div>}{message&&<p>{message}</p>}</section></main>;
+}
