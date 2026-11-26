@@ -56,8 +56,8 @@ export default function SupportPage() {
         </form>}
         {notice && <p role="status" style={{background:"#eef5f1",padding:13,borderRadius:10,lineHeight:1.5}}>{notice}</p>}
         <div style={{borderTop:"1px solid #e8edf2",marginTop:24,paddingTop:18,color:"#637287",lineHeight:1.7}}>
-          <b style={{color:"#172438"}}>E-posta ile ulaş:</b> <a href="mailto:Ferhatcaga04@gmail.com" style={{color:"#1b5e91"}}>Ferhatcaga04@gmail.com</a>
-          <p style={{fontSize:13,marginBottom:0}}>Mesaj formunu kullanmak için hesabına giriş yapmalısın. Acil olmayan taleplerini e-posta ile de gönderebilirsin.</p>
+          <b style={{color:"#172438"}}>E-posta ile ulaş:</b> <a href="mailto:Ferhatcaga04@gmail.com" style={{color:"#1b5e91"}}>Ferhatcaga04@gmail.com</a><br/><b style={{color:"#172438"}}>WhatsApp:</b> <a href="https://wa.me/905413805904" target="_blank" rel="noreferrer" style={{color:"#1b5e91"}}>0541 380 59 04 üzerinden mesaj gönder</a>
+          <p style={{fontSize:13,marginBottom:0}}>Mesaj formunu kullanmak için hesabına giriş yapmalısın. Dilersen doğrudan e-posta veya WhatsApp üzerinden de yazabilirsin.</p>
         </div>
       </section>
     </div>
