@@ -58,8 +58,11 @@ export default function AdminPage(){
    if(updateError)throw updateError;
    const oldPath=photoPath(b.image_url);
    if(oldPath)await supabase.storage.from("business-photos").remove([oldPath]);
-   setMessage("İşletme fotoğrafı yönetici tarafından güncellendi.");
-   await load();
+   setBusinesses(prev=>prev.map(item=>item.id===b.id?{...item,image_url:publicUrl}:item));
+   const oldPath=photoPath(b.image_url);
+   let cleanupWarning="";
+   if(oldPath){const {error:cleanupError}=await supabase.storage.from("business-photos").remove([oldPath]);if(cleanupError)cleanupWarning=" Eski fotoğraf dosyası temizlenemedi.";}
+   setMessage("İşletme fotoğrafı yönetici tarafından güncellendi."+cleanupWarning);
   }catch(error){
    if(newPath)await supabase.storage.from("business-photos").remove([newPath]);
    setMessage("Fotoğraf güncellenemedi: "+(error instanceof Error?error.message:"Bilinmeyen hata"));
@@ -71,10 +74,10 @@ export default function AdminPage(){
   try{
    const {error}=await supabase.from("businesses").update({image_url:null}).eq("id",b.id);
    if(error)throw error;
+   setBusinesses(prev=>prev.map(item=>item.id===b.id?{...item,image_url:null}:item));
    const oldPath=photoPath(b.image_url);
-   if(oldPath){const removed=await supabase.storage.from("business-photos").remove([oldPath]);if(removed.error)throw removed.error;}
-   setMessage("İşletme fotoğrafı silindi.");
-   await load();
+   if(oldPath){const removed=await supabase.storage.from("business-photos").remove([oldPath]);setMessage(removed.error?"Fotoğraf işletme profilinden kaldırıldı; eski dosya temizlenemedi.":"İşletme fotoğrafı silindi.");}
+   else setMessage("İşletme fotoğrafı silindi.");
   }catch(error){setMessage("Fotoğraf silinemedi: "+(error instanceof Error?error.message:"Bilinmeyen hata"));}
   finally{setPhotoBusyId("");}
  }
