@@ -7,7 +7,7 @@ import { supabase, supabaseReady } from "@/lib/supabase";
 
 export default function GirisPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -20,6 +20,7 @@ export default function GirisPage() {
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!supabase) { setMessage("Hesap sistemi şu anda yapılandırılamadı."); return; }
+    if (mode === "reset") { await sendReset(); return; }
     if (mode === "signup" && password !== confirmPassword) { setMessage("Girdiğin şifreler birbiriyle aynı değil."); return; }
     setBusy(true); setMessage("");
     if (mode === "signup") {
@@ -61,7 +62,7 @@ export default function GirisPage() {
   return <main className="auth-shell"><section className="auth-card">
     <Link className="brand auth-brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT<small>YEREL FIRSAT AĞI</small></span></Link>
     <span className="eyebrow dark">BOŞSAAT HESABI</span>
-    <h1>{mode === "login" ? "Tekrar hoş geldin." : "Aramıza katıl."}</h1>
+    <h1>{mode === "login" ? "Tekrar hoş geldin." : mode === "signup" ? "Aramıza katıl." : "Şifreni yenile."}</h1>
     <p>{mode === "login" ? "Fırsatlarını ve rezervasyon taleplerini takip et." : "Ücretsiz müşteri hesabını oluştur. Tüm alanları doldur."}</p>
     <form onSubmit={submit}>
       {mode === "signup" && <>
@@ -70,14 +71,14 @@ export default function GirisPage() {
         <label>Telefon numarası<input required type="tel" value={phone} onChange={e=>setPhone(e.target.value)} autoComplete="tel" /></label>
       </>}
       <label>E-posta adresi<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" /></label>
-      <label>Şifre (en az 8 karakter)<input required minLength={8} type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>
+      {mode !== "reset" && <label>Şifre (en az 8 karakter)<input required minLength={8} type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} /></label>}
       {mode === "signup" && <label>Şifreyi tekrar gir<input required minLength={8} type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} autoComplete="new-password" /></label>}
-      <button className="submit-btn" disabled={busy}>{busy ? "İşleniyor…" : mode === "login" ? "Giriş yap" : "Hesabımı oluştur"}</button>
+      <button className="submit-btn" disabled={busy}>{busy ? "İşleniyor…" : mode === "login" ? "Giriş yap" : mode === "signup" ? "Hesabımı oluştur" : "Şifre yenileme bağlantısı gönder"}</button>
     </form>
-    {mode === "login" && <button type="button" onClick={sendReset} disabled={busy} style={{display:"block",width:"100%",marginTop:16,padding:"13px 16px",border:"1px solid #18314d",borderRadius:6,background:"#eef3f7",color:"#102139",fontWeight:700,fontSize:14,cursor:"pointer"}}>ŞİFREMİ UNUTTUM — E-POSTAMA SIFIRLAMA LİNKİ GÖNDER</button>}
+    {mode === "login" && <button type="button" onClick={()=>{setMode("reset");setMessage("");setPassword("");}} disabled={busy} style={{display:"block",width:"100%",marginTop:16,padding:"13px 16px",border:"1px solid #18314d",borderRadius:6,background:"#eef3f7",color:"#102139",fontWeight:700,fontSize:14,cursor:"pointer"}}>ŞİFREMİ UNUTTUM</button>}
     {message && <div className="auth-message" role="status">{message}</div>}
     {!supabaseReady && <div className="auth-message">Üyelik sistemi bağlantı ayarı bekliyor.</div>}
-    <div className="auth-switch">{mode === "login" ? "Henüz hesabın yok mu?" : "Zaten hesabın var mı?"} <button type="button" onClick={()=>{setMode(mode === "login" ? "signup" : "login");setMessage("");}}>{mode === "login" ? "Üye ol" : "Giriş yap"}</button></div>
+    <div className="auth-switch">{mode === "login" ? "Henüz hesabın yok mu?" : mode === "signup" ? "Zaten hesabın var mı?" : "Şifreni hatırladın mı?"} <button type="button" onClick={()=>{setMode(mode === "login" ? "signup" : "login");setMessage("");setPassword("");setConfirmPassword("");}}>{mode === "login" ? "Üye ol" : "Giriş yap"}</button></div>
     <Link className="back-link" href="/">← Ana sayfaya dön</Link>
   </section></main>;
 }
