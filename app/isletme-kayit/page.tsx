@@ -10,15 +10,10 @@ export default function BusinessRegisterPage(){
  async function submit(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault(); if(!supabase){setMessage("İşletme kayıt sistemi henüz yapılandırılmadı.");return;}
   setBusy(true);setMessage("");
-  const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,phone,role:"business"}}});
+  const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,phone,role:"business",business_name:name,category,district}}});
   if(error){setMessage(error.message);setBusy(false);return;}
-  if(data.user){
-   if(data.session){
-    const {error:dbError}=await supabase.from("businesses").insert({owner_id:data.user.id,name,category,district,phone,status:"pending"});
-    if(dbError)setMessage("Hesap açıldı ancak işletme kaydı tamamlanamadı: "+dbError.message);
-    else router.push("/isletme");
-   }else setMessage("Hesap oluşturuldu. E-posta doğrulamasını tamamlayıp giriş yaptıktan sonra işletme kaydını tamamla.");
-  }
+  if(data.session) router.push("/isletme");
+  else setMessage("İşletme hesabın oluşturuldu. E-posta doğrulamasını tamamla. İşletme kaydın otomatik olarak onay bekleyenler listesine eklendi; doğrulama sonrası giriş yapabilirsin.");
   setBusy(false);
  }
  return <main className="auth-shell"><section className="auth-card wide"><Link className="brand auth-brand" href="/"><span className="brand-mark">B</span><span>BOŞSAAT<small>İŞLETME KAYDI</small></span></Link><span className="eyebrow dark">İŞLETMENİ BOŞSAAT'E EKLE</span><h1>Boş saatlerin kazanca dönüşsün.</h1><p>İşletme hesabını oluştur. Kaydın yönetim onayından sonra yayına alınır.</p><form onSubmit={submit}>
